@@ -1,0 +1,67 @@
+name: test
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+env:
+  FOUNDRY_PROFILE: ci
+  MNEMONIC: ${{ secrets.MNEMONIC }}
+  INFURA_API_KEY: ${{ secrets.INFURA_API_KEY }}
+  FORKING: ${{ secrets.FORKING }}
+  BLOCK_NUMBER: ${{ secrets.BLOCK_NUMBER }}
+  MAINNET_URL_ALCHEMY: ${{ secrets.MAINNET_URL_ALCHEMY }}
+
+jobs:
+  hardhat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Setup Node 16
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: |
+          npm ci
+
+      - name: Run hardhat complie
+        run: |
+          npm run compile
+
+      - name: Run Lint
+        run: |
+          npm run lint
+
+      - name: Run Hardhat tests
+        run: |
+          npm run test
+
+  foundry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Forge build
+        run: |
+          forge --version
+          forge build --sizes
+        id: build
+
+      - name: Run Forge tests
+        run: |
+          forge test -vvv
+        id: forge-test
