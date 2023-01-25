@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: (c) Ease DAO
+pragma solidity ^0.8.17;
+
+/**
+ * @dev Quick interface for the Nexus Mutual contract to work with the Armor Contracts.
+ **/
+
+// to get nexus mutual contract address
+interface INxmMaster {
+    function tokenAddress() external view returns (address);
+
+    function owner() external view returns (address);
+
+    function pauseTime() external view returns (uint);
+
+    function masterInitialized() external view returns (bool);
+
+    function isPause() external view returns (bool check);
+
+    function isMember(address _add) external view returns (bool);
+
+    function getLatestAddress(
+        bytes2 _contractName
+    ) external view returns (address payable contractAddress);
+}
+
+interface IPooledStaking {
+    function unstakeRequests(
+        uint256 id
+    )
+        external
+        view
+        returns (
+            uint256 amount,
+            uint256 unstakeAt,
+            address contractAddress,
+            address stakerAddress,
+            uint256 next
+        );
+
+    function processPendingActions(
+        uint256 iterations
+    ) external returns (bool success);
+
+    function MAX_EXPOSURE() external view returns (uint256);
+
+    function lastUnstakeRequestId() external view returns (uint256);
+
+    function stakerDeposit(address user) external view returns (uint256);
+
+    function stakerMaxWithdrawable(
+        address user
+    ) external view returns (uint256);
+
+    function withdrawReward(address user) external;
+
+    function requestUnstake(
+        address[] calldata protocols,
+        uint256[] calldata amounts,
+        uint256 insertAfter
+    ) external;
+
+    function depositAndStake(
+        uint256 deposit,
+        address[] calldata protocols,
+        uint256[] calldata amounts
+    ) external;
+
+    function stakerContractCount(
+        address staker
+    ) external view returns (uint256);
+
+    function stakerContractAtIndex(
+        address staker,
+        uint contractIndex
+    ) external view returns (address);
+
+    function stakerContractStake(
+        address staker,
+        address protocol
+    ) external view returns (uint256);
+
+    function stakerContractsArray(
+        address staker
+    ) external view returns (address[] memory);
+
+    function stakerContractPendingUnstakeTotal(
+        address staker,
+        address protocol
+    ) external view returns (uint256);
+
+    function withdraw(uint256 amount) external;
+
+    function stakerReward(address staker) external view returns (uint256);
+}
+
+interface IClaimsData {
+    function getClaimStatusNumber(
+        uint256 claimId
+    ) external view returns (uint256, uint256);
+
+    function getClaimDateUpd(uint256 claimId) external view returns (uint256);
+}
+
+interface INXMPool {
+    function buyNXM(uint minTokensOut) external payable;
+}
+
+interface IGovernance {
+    function submitVote(uint256 _proposalId, uint256 _solution) external;
+}
+
+interface IQuotation {
+    function getWithdrawableCoverNoteCoverIds(
+        address owner
+    ) external view returns (uint256[] memory, bytes32[] memory);
+}
+
+interface IStakingPool {
+    function depositTo(
+        uint amount,
+        uint trancheId,
+        uint requestTokenId,
+        address destination
+    ) external returns (uint tokenId);
+
+    function withdraw(
+        uint tokenId,
+        bool withdrawStake,
+        bool withdrawRewards,
+        uint[] memory trancheIds
+    ) external returns (uint withdrawnStake, uint withdrawnRewards);
+}
