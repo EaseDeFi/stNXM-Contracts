@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 // Local imports
 import "../general/Ownable.sol";
@@ -19,7 +18,6 @@ import "../interfaces/IRewardManager.sol";
 import "../interfaces/IShieldMining.sol";
 
 contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
-    using SafeMath for uint;
     using SafeERC20 for IERC20;
     using SafeERC20 for IERC20Mintable;
 
@@ -134,6 +132,9 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
     //////////////////////////////////////////////////////////////*/
     /// @dev Total assets under managament
     uint256 public aum;
+
+    /// @dev timestamp for last call to nexus pools get reward
+    uint256 public lastRewardCollected;
 
     /// @dev staking nft
     address public nxmStakingNFT;
@@ -263,7 +264,7 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
      **/
     function withdraw(uint256 _arAmount, bool _payFee) external oncePerTx {
         require(
-            block.timestamp.sub(withdrawalsPaused) > pauseDuration,
+            (block.timestamp - withdrawalsPaused) > pauseDuration,
             "Withdrawals are temporarily paused."
         );
 
@@ -273,13 +274,13 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
         // Yes
         aum -= nAmount;
         require(
-            totalPending.add(nAmount) <= nxm.balanceOf(address(this)),
+            (totalPending + nAmount) <= nxm.balanceOf(address(this)),
             "Not enough NXM available for witthdrawal."
         );
 
         if (_payFee) {
-            uint256 fee = nAmount.mul(withdrawFee).div(1000);
-            uint256 disbursement = nAmount.sub(fee);
+            uint256 fee = (nAmount * withdrawFee) / (1000);
+            uint256 disbursement = (nAmount - fee);
 
             // Burn also decreases sender's referral balance through alertTransfer.
             arNxm.burn(msg.sender, _arAmount);
@@ -288,7 +289,7 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
 
             emit Withdrawal(msg.sender, nAmount, _arAmount, block.timestamp);
         } else {
-            totalPending = totalPending.add(nAmount);
+            totalPending = totalPending + nAmount;
             arNxm.safeTransferFrom(msg.sender, address(this), _arAmount);
             WithdrawalRequest memory prevWithdrawal = withdrawals[msg.sender];
             withdrawals[msg.sender] = WithdrawalRequest(
@@ -302,7 +303,7 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
                 _arAmount,
                 nAmount,
                 block.timestamp,
-                block.timestamp.add(withdrawDelay)
+                block.timestamp + withdrawDelay
             );
         }
     }
@@ -318,11 +319,11 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
         uint256 requestTime = uint256(withdrawal.requestTime);
 
         require(
-            block.timestamp.sub(withdrawalsPaused) > pauseDuration,
+            (block.timestamp - withdrawalsPaused) > pauseDuration,
             "Withdrawals are temporarily paused."
         );
         require(
-            requestTime.add(withdrawDelay) <= block.timestamp,
+            (requestTime + withdrawDelay) <= block.timestamp,
             "Not ready to withdraw"
         );
         require(nAmount > 0, "No pending amount to withdraw");
@@ -332,7 +333,7 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
         _wrapNxm(nAmount);
         wNxm.safeTransfer(user, nAmount);
         delete withdrawals[user];
-        totalPending = totalPending.sub(nAmount);
+        totalPending = totalPending - nAmount;
 
         emit Withdrawal(user, nAmount, arAmount, block.timestamp);
     }
@@ -340,17 +341,25 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
     // @todo make this to support multiple pool reward withdrawals
     /**
      * @dev collect rewards from staking pool
+     * @param pools pools this contract has staked in
      * @param tokenId ERC721 token id
-     * @param trancheIds tranches user has staked for
+     * @param tranches tranches user has staked for
      **/
     function getRewardNxm(
-        address poolAddress,
+        address[] memory pools,
         uint tokenId,
-        uint[] memory trancheIds
+        uint[][] memory tranches
     ) external notContract {
         uint256 prevAum = aum;
-        uint256 rewards = _getRewardsNxm(poolAddress, tokenId, trancheIds);
+        uint256 rewards;
+        require(pools.length == tranches.length, "incorrect length");
+        for (uint i; i < pools.length; i++) {
+            rewards += _getRewardsNxm(pools[i], tokenId, tranches[i]);
+        }
 
+        // update last reward
+        // @note should I take care if last rewards has been distributed?
+        lastReward = rewards;
         if (rewards > 0) {
             lastRewardTimestamp = block.timestamp;
             emit NxmReward(rewards, block.timestamp, prevAum);
@@ -393,15 +402,15 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
 
         // aum() holds full reward so we sub lastReward (which needs to be distributed over time)
         // and add reward that has been distributed
-        uint256 totalN = aum.add(reward).sub(lastReward);
+        uint256 totalN = aum + reward - lastReward;
         uint256 totalAr = arNxm.totalSupply();
 
         // Find exchange amount of one token, then find exchange amount for full value.
         if (totalN == 0) {
             arAmount = _nAmount;
         } else {
-            uint256 oneAmount = (totalAr.mul(1e18)).div(totalN);
-            arAmount = _nAmount.mul(oneAmount).div(1e18);
+            uint256 oneAmount = (totalAr * 1e18) / totalN;
+            arAmount = (_nAmount * oneAmount) / (1e18);
         }
     }
 
@@ -416,12 +425,12 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
 
         // aum() holds full reward so we sub lastReward (which needs to be distributed over time)
         // and add reward that has been distributed
-        uint256 totalN = aum.add(reward).sub(lastReward);
+        uint256 totalN = aum + reward - lastReward;
         uint256 totalAr = arNxm.totalSupply();
 
         // Find exchange amount of one token, then find exchange amount for full value.
-        uint256 oneAmount = (totalN.mul(1e18)).div(totalAr);
-        nAmount = _arAmount.mul(oneAmount).div(1e18);
+        uint256 oneAmount = (totalN * 1e18) / totalAr;
+        nAmount = (_arAmount * (oneAmount)) / 1e18;
     }
 
     /**
@@ -455,7 +464,7 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
         uint256 dateUpdate = claimsData.getClaimDateUpd(_claimId);
 
         // Status must be 14 and date update must be within the past 7 days.
-        if (status == 14 && block.timestamp.sub(dateUpdate) <= 7 days) {
+        if (status == 14 && (block.timestamp - dateUpdate) <= 7 days) {
             withdrawalsPaused = block.timestamp;
         }
     }
@@ -519,12 +528,8 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
         uint256 reward
     ) internal returns (uint256 userReward) {
         // Find both rewards before minting any.
-        uint256 adminReward = arNxmValue(
-            reward.mul(adminPercent).div(DENOMINATOR)
-        );
-        uint256 referReward = arNxmValue(
-            reward.mul(referPercent).div(DENOMINATOR)
-        );
+        uint256 adminReward = arNxmValue((reward * adminPercent) / DENOMINATOR);
+        uint256 referReward = arNxmValue((reward * referPercent) / DENOMINATOR);
 
         // Mint to beneficary then this address (to then transfer to rewardManager).
         if (adminReward > 0) {
@@ -535,7 +540,7 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
             rewardManager.notifyRewardAmount(referReward);
         }
 
-        userReward = reward.sub(adminReward).sub(referReward);
+        userReward = reward - (adminReward + referReward);
     }
 
     /**
@@ -616,10 +621,10 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
         uint256 balance = nxm.balanceOf(address(this));
         // If we do need to restake funds...
         // toStake == additional stake on top of old ones
-        if (reserveAmount.add(totalPending) > balance) {
+        if ((reserveAmount + totalPending) > balance) {
             toStake = 0;
         } else {
-            toStake = balance.sub(reserveAmount.add(totalPending));
+            toStake = balance + totalPending - reserveAmount;
         }
 
         // @todo returns tokenId see if there is a need do something with it
@@ -635,7 +640,7 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
      **/
     function _currentReward() internal view returns (uint256 reward) {
         uint256 duration = rewardDuration;
-        uint256 timeElapsed = block.timestamp.sub(lastRewardTimestamp);
+        uint256 timeElapsed = block.timestamp - lastRewardTimestamp;
         if (timeElapsed == 0) {
             return 0;
         }
@@ -646,8 +651,8 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
             // Otherwise, disburse amounts linearly over duration.
         } else {
             // 1e18 just for a buffer.
-            uint256 portion = (duration.mul(1e18)).div(timeElapsed);
-            reward = (lastReward.mul(1e18)).div(portion);
+            uint256 portion = (duration * 1e18) / timeElapsed;
+            reward = (lastReward * 1e18) / portion;
         }
     }
 
