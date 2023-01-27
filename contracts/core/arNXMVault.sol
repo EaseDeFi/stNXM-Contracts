@@ -209,10 +209,7 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
     }
 
     function initializeV2(address _nxmStakingNFT) external {
-        require(
-            address(nxmStakingNFT) == address(0),
-            "V2 has already been initialized"
-        );
+        require(address(nxmStakingNFT) == address(0), "initialized already");
         nxmStakingNFT = _nxmStakingNFT;
 
         IPooledStaking oldPool = IPooledStaking(
@@ -284,7 +281,7 @@ contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
         aum -= nAmount;
         require(
             (totalPending + nAmount) <= nxm.balanceOf(address(this)),
-            "Not enough NXM available for witthdrawal."
+            "Not enough NXM available for withdrawal."
         );
 
         if (_payFee) {

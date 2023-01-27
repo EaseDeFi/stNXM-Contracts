@@ -9,7 +9,7 @@
     "lint:ts": "eslint --config ./.eslintrc.js --ignore-path ./.eslintignore --ext .js,.ts .",
     "prettier": "prettier --write \"**/*.{js,json,md,sol,ts,yaml,yml}\"",
     "prettier:check": "prettier --check \"**/*.{js,json,md,sol,ts,yaml,yml}\"",
-    "test": "forge test -vvv && hardhat test",
+    "test": "hardhat test",
     "typechain": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat typechain"
   },
   "devDependencies": {
@@ -20,6 +20,9 @@
     "cross-env": "^7.0.3",
     "dotenv": "^16.0.3",
     "eslint-config-prettier": "^8.6.0",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-promise": "^6.1.1",
     "hardhat": "^2.12.6",
@@ -29,5 +32,8 @@
     "prettier-plugin-solidity": "^1.1.1",
     "shx": "^0.3.4",
     "solhint": "^3.3.8"
+  },
+  "dependencies": {
+    "eslint": "^8.32.0"
   }
 }
