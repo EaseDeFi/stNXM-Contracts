@@ -17,6 +17,15 @@ import "../interfaces/INexusMutual.sol";
 import "../interfaces/IRewardManager.sol";
 import "../interfaces/IShieldMining.sol";
 
+// solhint-disable not-rely-on-time
+// solhint-disable reason-string
+// solhint-disable max-states-count
+// solhint-disable no-inline-assembly
+// solhint-disable no-empty-blocks
+// solhint-disable contract-name-camelcase
+// solhint-disable var-name-mixedcase
+// solhint-disable avoid-tx-origin
+
 contract arNXMVault is Ownable, arNXMVaultEvents, ERC721TokenReceiver {
     using SafeERC20 for IERC20;
     using SafeERC20 for IERC20Mintable;

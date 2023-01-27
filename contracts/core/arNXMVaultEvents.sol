@@ -1,9 +1,9 @@
-
 // SPDX-License-Identifier: (c) Ease DAO
 pragma solidity ^0.8.0;
 
-contract arNXMVaultEvents {
+// solhint-disable contract-name-camelcase
 
+contract arNXMVaultEvents {
     event Deposit(
         address indexed user,
         uint256 nAmount,

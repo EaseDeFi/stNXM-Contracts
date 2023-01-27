@@ -3,6 +3,7 @@ pragma solidity ^0.8.17;
 
 // Uncomment this line to use console.log
 // import "hardhat/console.sol";
+// solhint-disable not-rely-on-time
 
 contract Lock {
     uint public unlockTime;
@@ -11,10 +12,7 @@ contract Lock {
     event Withdrawal(uint amount, uint when);
 
     constructor(uint _unlockTime) payable {
-        require(
-            block.timestamp < _unlockTime,
-            "Unlock time should be in the future"
-        );
+        require(block.timestamp < _unlockTime, "unlock time < timestamp");
 
         unlockTime = _unlockTime;
         owner = payable(msg.sender);

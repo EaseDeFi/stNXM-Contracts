@@ -55,17 +55,17 @@ contract Ownable {
      * @dev Throws if called by any account other than the owner.
      */
     modifier onlyOwner() {
-        require(isOwner(), "msg.sender is not owner");
+        require(isOwner(), "only owner");
         _;
     }
 
     modifier onlyFirstOwner() {
-        require(msg.sender == _owner, "msg.sender is not owner");
+        require(msg.sender == _owner, "only owner");
         _;
     }
 
     modifier onlySecondOwner() {
-        require(msg.sender == _secondOwner, "msg.sender is not owner");
+        require(msg.sender == _secondOwner, "only owner");
         _;
     }
 
@@ -85,10 +85,7 @@ contract Ownable {
     }
 
     function receiveOwnership() public {
-        require(
-            msg.sender == _pendingOwner,
-            "only pending owner can call this function"
-        );
+        require(msg.sender == _pendingOwner, "only pending owner");
         _transferOwnership(_pendingOwner);
         _pendingOwner = address(0);
     }
@@ -98,7 +95,7 @@ contract Ownable {
      * @param newOwner The address to transfer ownership to.
      */
     function _transferOwnership(address newOwner) internal {
-        require(newOwner != address(0));
+        require(newOwner != address(0), "zero address");
         emit OwnershipTransferred(_owner, newOwner);
         _owner = newOwner;
     }
@@ -112,10 +109,7 @@ contract Ownable {
     }
 
     function receiveSecondOwnership() public {
-        require(
-            msg.sender == _pendingSecond,
-            "only pending owner can call this function"
-        );
+        require(msg.sender == _pendingSecond, "only pending owner");
         _transferSecondOwnership(_pendingSecond);
         _pendingSecond = address(0);
     }
@@ -125,7 +119,7 @@ contract Ownable {
      * @param newOwner The address to transfer ownership to.
      */
     function _transferSecondOwnership(address newOwner) internal {
-        require(newOwner != address(0));
+        require(newOwner != address(0), "zero address");
         emit SecondOwnershipTransferred(_secondOwner, newOwner);
         _secondOwner = newOwner;
     }
