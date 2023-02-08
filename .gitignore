@@ -17,3 +17,6 @@ artifacts
 # Forge Files
 forge_cache/
 out/
+
+ignore/
+old/
