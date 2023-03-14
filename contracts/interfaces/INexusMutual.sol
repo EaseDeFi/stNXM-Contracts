@@ -6,6 +6,9 @@ pragma solidity ^0.8.17;
  **/
 
 // to get nexus mutual contract address
+
+// solhint-disable func-name-mixedcase
+
 interface INxmMaster {
     function tokenAddress() external view returns (address);
 
