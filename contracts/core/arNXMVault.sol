@@ -186,10 +186,7 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
     //////////////////////////////////////////////////////////////*/
     ///@dev Avoid composability issues for liquidation.
     modifier notContract() {
-        require(
-            msg.sender == tx.origin && msg.sender.code.length == 0,
-            "Sender must be an EOA."
-        );
+        require(msg.sender == tx.origin, "Sender must be an EOA.");
         _;
     }
 
