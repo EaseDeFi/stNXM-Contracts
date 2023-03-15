@@ -118,29 +118,6 @@ interface IQuotation {
 }
 
 interface IStakingPool {
-    struct BurnStakeParams {
-        uint allocationId;
-        uint productId;
-        uint start;
-        uint period;
-        uint deallocationAmount;
-    }
-    struct AllocationRequest {
-        uint productId;
-        uint coverId;
-        uint allocationId;
-        uint period;
-        uint gracePeriod;
-        bool useFixedPrice;
-        uint previousStart;
-        uint previousExpiration;
-        uint previousRewardsRatio;
-        uint globalCapacityRatio;
-        uint capacityReductionRatio;
-        uint rewardRatio;
-        uint globalMinPrice;
-    }
-
     function ALLOCATION_UNITS_PER_NXM() external view returns (uint256);
 
     function BUCKET_DURATION() external view returns (uint256);
@@ -174,7 +151,9 @@ interface IStakingPool {
 
     function WEIGHT_DENOMINATOR() external view returns (uint256);
 
-    function burnStake(uint256 amount, BurnStakeParams memory params) external;
+    function implementation() external view returns (address);
+
+    function beacon() external view returns (address);
 
     function calculateNewRewardShares(
         uint256 initialStakeShares,
@@ -317,12 +296,6 @@ interface IStakingPool {
     function nxm() external view returns (address);
 
     function processExpirations(bool updateUntilCurrentTimestamp) external;
-
-    function requestAllocation(
-        uint256 amount,
-        uint256 previousPremium,
-        AllocationRequest memory request
-    ) external returns (uint256 premium, uint256 allocationId);
 
     function rewardPerSecondCut(uint256) external view returns (uint256);
 

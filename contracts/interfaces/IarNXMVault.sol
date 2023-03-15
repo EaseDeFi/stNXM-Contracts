@@ -107,8 +107,9 @@ interface IarNXMVault {
     function secondOwner() external view returns (address);
 
     function stakeNxm(
-        address[] memory _protocols,
-        uint256[] memory _stakeAmounts
+        address poolAddress,
+        uint trancheId,
+        uint requestTokenId
     ) external;
 
     function stakedNxm() external view returns (uint256 staked);
@@ -121,11 +122,7 @@ interface IarNXMVault {
 
     function transferSecondOwnership(address newOwner) external;
 
-    function unstakeNxm(
-        uint256 _lastId,
-        address[] memory _protocols,
-        uint256[] memory _unstakeAmounts
-    ) external;
+    function unstakeNxm(uint _tokenId, uint256[] memory _trancheIds) external;
 
     function unwrapWnxm() external;
 
@@ -139,7 +136,11 @@ interface IarNXMVault {
 
     function withdrawFinalize() external;
 
-    function withdrawNxm() external;
+    function withdrawNxm(
+        address poolAddress,
+        uint tokenId,
+        uint256[] memory _trancheIds
+    ) external;
 
     function withdrawals(
         address
