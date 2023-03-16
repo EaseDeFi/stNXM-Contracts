@@ -10,6 +10,7 @@ src/types
 # Hardhat files
 cache
 artifacts
+deployments/
 
 # local files
 .openzeppelin/
