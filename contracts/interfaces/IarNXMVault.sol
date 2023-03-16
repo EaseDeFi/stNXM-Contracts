@@ -107,6 +107,7 @@ interface IarNXMVault {
     function secondOwner() external view returns (address);
 
     function stakeNxm(
+        uint amount,
         address poolAddress,
         uint trancheId,
         uint requestTokenId

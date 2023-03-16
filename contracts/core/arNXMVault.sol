@@ -608,11 +608,12 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
      * @dev Used to stake nxm tokens to stake pool. it is determined manually
      **/
     function stakeNxm(
+        uint _amount,
         address _poolAddress,
         uint _trancheId,
         uint _requestTokenId
     ) external onlyOwner {
-        _stakeNxm(_poolAddress, _trancheId, _requestTokenId);
+        _stakeNxm(_amount, _poolAddress, _trancheId, _requestTokenId);
     }
 
     /**
@@ -653,41 +654,41 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
 
     /**
      * @dev Stake any wNxm over the amount we need to keep in reserve (bufferPercent% more than withdrawals last week).
-     * @param _trancheId index of tranche to stake for
+     * @param _amount amount of NXM to stake
+     * @param _poolAddress risk pool address
+     * @param _trancheId tranche to stake NXM in
      * @param _requestTokenId token id of NFT
-     * @return toStake Amount of token that we will be staking.
      **/
     function _stakeNxm(
+        uint _amount,
         address _poolAddress,
         uint _trancheId,
         uint _requestTokenId
-    ) internal returns (uint256 toStake) {
+    ) internal {
         IStakingPool pool = IStakingPool(_poolAddress);
         uint256 balance = nxm.balanceOf(address(this));
         // If we do need to restake funds...
         // toStake == additional stake on top of old ones
-        if ((reserveAmount + totalPending) > balance) {
-            toStake = 0;
-        } else {
-            toStake = balance + totalPending - reserveAmount;
-        }
 
-        if (toStake != 0) {
-            _approveNxm(_getTokenController(), toStake);
-            uint tokenId = pool.depositTo(
-                toStake,
-                _trancheId,
-                _requestTokenId,
-                address(this)
-            );
-            // if new nft token is minted we need to keep track of
-            // tokenId and poolAddress inorder to calculate assets
-            // under management
-            if (_requestTokenId == type(uint).max) {
-                if (tokenIdToPool[tokenId] == address(0)) {
-                    tokenIds.push(tokenId);
-                    tokenIdToPool[tokenId] = _poolAddress;
-                }
+        require(
+            (reserveAmount + totalPending + _amount) <= balance,
+            "Not enough NXM"
+        );
+
+        _approveNxm(_getTokenController(), _amount);
+        uint tokenId = pool.depositTo(
+            _amount,
+            _trancheId,
+            _requestTokenId,
+            address(this)
+        );
+        // if new nft token is minted we need to keep track of
+        // tokenId and poolAddress inorder to calculate assets
+        // under management
+        if (_requestTokenId == type(uint).max) {
+            if (tokenIdToPool[tokenId] == address(0)) {
+                tokenIds.push(tokenId);
+                tokenIdToPool[tokenId] = _poolAddress;
             }
         }
     }
@@ -755,11 +756,11 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
 
     /// @dev get active trancheId's to collect rewards
     function _getActiveTrancheIds() internal view returns (uint256[] memory) {
-        uint8 trancheCount = 8;
+        uint8 trancheCount = 9;
         uint256[] memory _trancheIds = new uint256[](trancheCount);
         // assuming we have not collected rewards from last expired tranche
         uint lastExpiredTrancheId = (block.timestamp / 91 days) - 1;
-        for (uint256 i = 0; i < 8; i++) {
+        for (uint256 i = 0; i < trancheCount; i++) {
             _trancheIds[i] = lastExpiredTrancheId + i;
         }
         return _trancheIds;
