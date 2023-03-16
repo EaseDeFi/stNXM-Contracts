@@ -349,20 +349,37 @@ contract arNXMValultOldTest is Test {
 
         (uint stakeSharesBefore, uint rewardSharesBefore) = stakingPool
             .getTranche(trancheId);
-        console.log("stakeSharesBefore", stakeSharesBefore);
-        console.log("rewardSharesBefore", rewardSharesBefore);
 
         uint vaultNXMBalBefore = nxm.balanceOf(address(arNXMVaultProxy));
+        uint aumBefore = arNXMVaultProxy.aum();
+
         // deposit to staking pool
         stakeNxm(amountToStake, riskPools[0], trancheId, tokenIds[0]);
+
         uint vaultNXMBalAfter = nxm.balanceOf(address(arNXMVaultProxy));
-        require(vaultNXMBalBefore > vaultNXMBalAfter, "nxm transfer failed");
+        uint aumAfter = arNXMVaultProxy.aum();
+
+        // aum increases by 1 uinits so >= is used instead of ==
+        require(aumAfter >= aumBefore, "aum should not decrease");
+
+        require(
+            (vaultNXMBalBefore - vaultNXMBalAfter) == amountToStake,
+            "nxm not staked"
+        );
 
         (uint stakeSharesAfter, uint rewardSharesAfter) = stakingPool
             .getTranche(trancheId);
 
-        console.log("stakeSharesAfter", stakeSharesAfter);
-        console.log("rewardSharesAfter", rewardSharesAfter);
+        // stake shares should increase
+        require(
+            stakeSharesAfter > stakeSharesBefore,
+            "stake shares not updated"
+        );
+        // reward shares should increase
+        require(
+            rewardSharesAfter > rewardSharesBefore,
+            "reward shares not updated"
+        );
     }
 
     // @todo this call revert's with no reason. Possibly something to do with nexus
