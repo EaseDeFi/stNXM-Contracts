@@ -688,11 +688,9 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
         // if new nft token is minted we need to keep track of
         // tokenId and poolAddress inorder to calculate assets
         // under management
-        if (_requestTokenId == type(uint).max) {
-            if (tokenIdToPool[tokenId] == address(0)) {
-                tokenIds.push(tokenId);
-                tokenIdToPool[tokenId] = _poolAddress;
-            }
+        if (tokenIdToPool[tokenId] == address(0)) {
+            tokenIds.push(tokenId);
+            tokenIdToPool[tokenId] = _poolAddress;
         }
     }
 
@@ -926,6 +924,10 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
      **/
     function changeBeneficiary(address _newBeneficiary) external onlyOwner {
         beneficiary = _newBeneficiary;
+    }
+
+    function removeRiskPool(uint _tokenId) external onlyOwner {
+        delete tokenIdToPool[_tokenId];
     }
 
     /**

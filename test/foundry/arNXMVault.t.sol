@@ -28,7 +28,8 @@ contract arNXMValultOldTest is Test {
     IERC20 wNXM = IERC20(0x0d438F3b5175Bebc262bF23753C1E53d03432bDE);
     IERC20 arNXM = IERC20(0x1337DEF18C680aF1f9f45cBcab6309562975b1dD);
 
-    address stakingNFT = 0xcafea508a477D94c502c253A58239fb8F948e97f;
+    IStakingNFT stakingNFT =
+        IStakingNFT(0xcafea508a477D94c502c253A58239fb8F948e97f);
     address implAddress;
     address[] riskPools = [
         0x462340b61e2ae2C13f01F66B727d1bFDc907E53e,
@@ -63,11 +64,7 @@ contract arNXMValultOldTest is Test {
     function initializeV2() public {
         vm.startPrank(multisig);
         // initialize v2
-        arNXMVaultProxy.initializeV2(
-            IStakingNFT(stakingNFT),
-            tokenIds,
-            riskPools
-        );
+        arNXMVaultProxy.initializeV2(stakingNFT, tokenIds, riskPools);
 
         vm.stopPrank();
     }
@@ -143,7 +140,7 @@ contract arNXMValultOldTest is Test {
 
         // check if stakingNFT is initialized properly
         require(
-            arNXMVaultProxy.stakingNFT() == stakingNFT,
+            arNXMVaultProxy.stakingNFT() == address(stakingNFT),
             "staking nft not setup"
         );
         // check if token id's are initialized properly
@@ -390,6 +387,67 @@ contract arNXMValultOldTest is Test {
             rewardSharesAfter > rewardSharesBefore,
             "reward shares not updated"
         );
+    }
+
+    function testStakeNXMAndGetNewNFT() public {
+        initializeV2();
+        // add nxm to nxmvault from nxm whale
+        vm.startPrank(nxmWhale);
+        nxm.transfer(address(arNXMVaultProxy), 10000e18);
+        vm.stopPrank();
+        // first active tranche Id
+        uint trancheId = 217;
+        uint amountToStake = 1000e18;
+        uint stakingNFTBalBefore = stakingNFT.balanceOf(
+            address(arNXMVaultProxy)
+        );
+
+        uint aumBefore = arNXMVaultProxy.aum();
+        // array should only have 2 elements
+        vm.expectRevert();
+        arNXMVaultProxy.tokenIds(2);
+
+        // deposit to staking pool and get new nft (*0 as tokenID mints new one)
+        stakeNxm(amountToStake, riskPools[0], trancheId, 0);
+
+        uint aumAfter = arNXMVaultProxy.aum();
+
+        uint stakingNFTBalAfter = stakingNFT.balanceOf(
+            address(arNXMVaultProxy)
+        );
+
+        // should mint new nft
+        require(
+            (stakingNFTBalAfter - stakingNFTBalBefore) == 1,
+            "nft not minted"
+        );
+        uint mintedNFTTokenId = stakingNFT.totalSupply();
+        require(
+            stakingNFT.ownerOf(mintedNFTTokenId) == address(arNXMVaultProxy),
+            "arNXM vault should be owner of new nft"
+        );
+
+        INFTDescriptor nftDescriptor = INFTDescriptor(
+            stakingNFT.nftDescriptor()
+        );
+
+        (, uint actualStaked, ) = nftDescriptor.getActiveDeposits(
+            mintedNFTTokenId,
+            riskPools[0]
+        );
+        // total staked returned by nexus is little bit less than actual staked
+        require(actualStaked >= (amountToStake - 1e12), "wrong total staked");
+
+        // aum should be equal to or greater than actual staked
+        require(aumAfter >= aumBefore, "aum should be >= aum before");
+
+        // check if new tokenId was added to tokenIds array
+        uint newTokenId = arNXMVaultProxy.tokenIds(2);
+        require(newTokenId == mintedNFTTokenId, "wrong token id");
+
+        // check if new token id was mapped to risk pool
+        address stakedRiskPool = arNXMVaultProxy.tokenIdToPool(newTokenId);
+        require(stakedRiskPool == riskPools[0], "wrong risk pool");
     }
 
     function testUnstakeNXM() public {
