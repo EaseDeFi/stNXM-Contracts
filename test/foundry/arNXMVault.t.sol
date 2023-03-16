@@ -311,7 +311,7 @@ contract arNXMValultOldTest is Test {
         );
     }
 
-    function testReward() public {
+    function testCollectReward_success() public {
         initializeV2();
         uint lastRewardBefore = arNXMVaultProxy.lastReward();
         uint lastRewardCollectedBefore = arNXMVaultProxy.lastRewardCollected();
@@ -333,6 +333,16 @@ contract arNXMValultOldTest is Test {
             lastRewardCollectedAfter == lastRewardCollectedBefore,
             "reward should not be active yet"
         );
+    }
+
+    function testCollectReward_fail() public {
+        initializeV2();
+        vm.warp(block.timestamp + 7 days);
+        vm.startPrank(address(1234), address(1234));
+        arNXMVaultProxy.getRewardNxm();
+        vm.expectRevert("reward interval not reached");
+        arNXMVaultProxy.getRewardNxm();
+        vm.stopPrank();
     }
 
     function testStakeNXM() public {

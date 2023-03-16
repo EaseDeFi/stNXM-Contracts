@@ -25,8 +25,6 @@ import "../interfaces/IShieldMining.sol";
 // solhint-disable var-name-mixedcase
 // solhint-disable avoid-tx-origin
 
-// @todo add natspec for this contract
-
 contract arNXMVault is Ownable, ERC721TokenReceiver {
     using SafeERC20 for IERC20;
     using SafeERC20 for IERC20Mintable;
@@ -225,8 +223,8 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
     /**
      * @dev Set's initial state for nexus mutual v2
      * @param _stakingNFT Nexus mutual staking NFT contract
-     * @param _tokenIds Array of tokenIds this vault owns
-     * @param _riskPools Array of risk pools this vault has staked into
+     * @param _tokenIds Array of tokenIds this vault initially owns
+     * @param _riskPools Array of risk pools this vault has initially staked into
      **/
     function initializeV2(
         IStakingNFT _stakingNFT,
@@ -383,9 +381,9 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
         // update last reward
         lastReward = rewards;
         if (rewards > 0) {
-            lastRewardTimestamp = block.timestamp;
             emit NxmReward(rewards, block.timestamp, prevAum);
         }
+        lastRewardTimestamp = block.timestamp;
     }
 
     /**
@@ -762,9 +760,11 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
     /// @dev get active trancheId's to collect rewards
     function _getActiveTrancheIds() internal view returns (uint256[] memory) {
         uint8 trancheCount = 9;
+        uint trancheDuration = 91 days;
         uint256[] memory _trancheIds = new uint256[](trancheCount);
+
         // assuming we have not collected rewards from last expired tranche
-        uint lastExpiredTrancheId = (block.timestamp / 91 days) - 1;
+        uint lastExpiredTrancheId = (block.timestamp / trancheDuration) - 1;
         for (uint256 i = 0; i < trancheCount; i++) {
             _trancheIds[i] = lastExpiredTrancheId + i;
         }
