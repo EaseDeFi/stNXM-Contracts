@@ -586,7 +586,10 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
     }
 
     /**
-     * @dev Used to withdraw nxm from staking pool
+     * @dev Used to withdraw nxm from staking pool with ability to pass in risk pool address
+     * @param _poolAddress risk pool address
+     * @param _tokenId Staking NFT token id
+     * @param _trancheIds tranches to unstake from
      **/
     function withdrawNxm(
         address _poolAddress,
@@ -618,8 +621,10 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
 
     /**
      * @dev Used to withdraw nxm from staking pool after tranche expires
+     * @param _tokenId Staking NFT token id
+     * @param _trancheIds tranches to unstake from
      **/
-    function unstakeNXM(
+    function unstakeNxm(
         uint _tokenId,
         uint256[] memory _trancheIds
     ) external onlyOwner {

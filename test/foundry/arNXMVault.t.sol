@@ -382,17 +382,53 @@ contract arNXMValultOldTest is Test {
         );
     }
 
-    // @todo this call revert's with no reason. Possibly something to do with nexus
-    // @todo remove x from testcase
-    function xtestUnstakeNXM() public {
+    function testUnstakeNXM() public {
         initializeV2();
         uint trancheId = 213;
         uint[] memory trancheIds = new uint[](1);
+        // approximation
+        uint expectedUnstakeAmount = 17000e18;
         trancheIds[0] = trancheId;
         uint vaultNXMBalBefore = nxm.balanceOf(address(arNXMVaultProxy));
         vm.warp(block.timestamp + 92 days);
         unstakeNxm(tokenIds[0], trancheIds);
         uint vaultNXMBalAfter = nxm.balanceOf(address(arNXMVaultProxy));
-        require(vaultNXMBalAfter > vaultNXMBalBefore, "nxm transfer failed");
+        require(
+            vaultNXMBalAfter > (vaultNXMBalBefore + expectedUnstakeAmount),
+            "nxm transfer failed"
+        );
+    }
+
+    function testUnstakeNXMFail() public {
+        initializeV2();
+        uint trancheId = 213;
+        uint[] memory trancheIds = new uint[](1);
+        trancheIds[0] = trancheId;
+        uint vaultNXMBalBefore = nxm.balanceOf(address(arNXMVaultProxy));
+        unstakeNxm(tokenIds[0], trancheIds);
+        uint vaultNXMBalAfter = nxm.balanceOf(address(arNXMVaultProxy));
+
+        // as tranche has not expired it should not unstake 0 NXM
+        require(vaultNXMBalAfter == vaultNXMBalBefore, "should not unstake");
+    }
+
+    function testWithdrawNxmFromPool() public {
+        initializeV2();
+        uint trancheId = 213;
+        uint[] memory trancheIds = new uint[](1);
+        // approx unstake amount
+        uint expectedUnstakeAmount = 17000e18;
+        trancheIds[0] = trancheId;
+        uint vaultNXMBalBefore = nxm.balanceOf(address(arNXMVaultProxy));
+        vm.warp(block.timestamp + 92 days);
+        vm.startPrank(multisig);
+        arNXMVaultProxy.withdrawNxm(riskPools[0], tokenIds[0], trancheIds);
+        vm.stopPrank();
+        uint vaultNXMBalAfter = nxm.balanceOf(address(arNXMVaultProxy));
+
+        require(
+            vaultNXMBalAfter > (vaultNXMBalBefore + expectedUnstakeAmount),
+            "nxm transfer failed"
+        );
     }
 }
