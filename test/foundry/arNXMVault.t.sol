@@ -105,12 +105,18 @@ contract arNXMValultOldTest is Test {
     }
 
     function stakeNxm(
+        uint amount,
         address poolAddress,
         uint trancheId,
         uint requestTokenId
     ) public {
         vm.startPrank(multisig);
-        arNXMVaultProxy.stakeNxm(poolAddress, trancheId, requestTokenId);
+        arNXMVaultProxy.stakeNxm(
+            amount,
+            poolAddress,
+            trancheId,
+            requestTokenId
+        );
         vm.stopPrank();
     }
 
@@ -329,22 +335,34 @@ contract arNXMValultOldTest is Test {
         );
     }
 
-    // @todo this call revert's with no reason. Possibly something to do with nexus
-    // @todo remove x from testcase
-    function xtestStakeNXM() public {
+    function testStakeNXM() public {
         initializeV2();
         // add nxm to nxmvault from nxm whale
         vm.startPrank(nxmWhale);
         nxm.transfer(address(arNXMVaultProxy), 10000e18);
         vm.stopPrank();
         // first active tranche Id
-        uint trancheId = 213;
-        uint vaultNXMBalBefore = nxm.balanceOf(address(arNXMVaultProxy));
-        // deposit to vault
+        uint trancheId = 217;
+        uint amountToStake = 1000e18;
 
-        stakeNxm(riskPools[0], tokenIds[0], trancheId);
+        IStakingPool stakingPool = IStakingPool(riskPools[0]);
+
+        (uint stakeSharesBefore, uint rewardSharesBefore) = stakingPool
+            .getTranche(trancheId);
+        console.log("stakeSharesBefore", stakeSharesBefore);
+        console.log("rewardSharesBefore", rewardSharesBefore);
+
+        uint vaultNXMBalBefore = nxm.balanceOf(address(arNXMVaultProxy));
+        // deposit to staking pool
+        stakeNxm(amountToStake, riskPools[0], trancheId, tokenIds[0]);
         uint vaultNXMBalAfter = nxm.balanceOf(address(arNXMVaultProxy));
         require(vaultNXMBalBefore > vaultNXMBalAfter, "nxm transfer failed");
+
+        (uint stakeSharesAfter, uint rewardSharesAfter) = stakingPool
+            .getTranche(trancheId);
+
+        console.log("stakeSharesAfter", stakeSharesAfter);
+        console.log("rewardSharesAfter", rewardSharesAfter);
     }
 
     // @todo this call revert's with no reason. Possibly something to do with nexus
