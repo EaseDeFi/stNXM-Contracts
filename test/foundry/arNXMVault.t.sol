@@ -19,6 +19,8 @@ contract ArNxmSetup is Test {
 }
 
 contract arNXMValultOldTest is Test {
+    error InvalidStakingPoolForToken();
+
     uint forkBeforePause;
     uint currentFork;
     uint forkBeforeNxmUpgrade;
@@ -127,7 +129,7 @@ contract arNXMValultOldTest is Test {
                             TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testUpdateImplementation() public {
+    function testUpdateImplementation() public view {
         address implementation = arNXMVaultProxy.implementation();
         require(
             implementation == implAddress,
@@ -387,6 +389,23 @@ contract arNXMValultOldTest is Test {
             rewardSharesAfter > rewardSharesBefore,
             "reward shares not updated"
         );
+    }
+
+    function testStakeNXMWithInvalidStakingPoolToken() public {
+        initializeV2();
+        // add nxm to nxmvault from nxm whale
+        vm.startPrank(nxmWhale);
+        nxm.transfer(address(arNXMVaultProxy), 10000e18);
+        vm.stopPrank();
+        // first active tranche Id
+        uint trancheId = 217;
+        uint amountToStake = 1000e18;
+
+        // deposit to staking pool
+        vm.expectRevert(InvalidStakingPoolForToken.selector);
+
+        // stake with invalid staking pool for token
+        stakeNxm(amountToStake, riskPools[0], trancheId, tokenIds[1]);
     }
 
     function testStakeNXMAndGetNewNFT() public {
