@@ -329,7 +329,7 @@ contract arNXMValultOldTest is Test {
         require(lastRewardBefore != 0, "last reward before should be > 0");
 
         require(
-            lastRewardCollectedAfter- lastRewardCollectedBefore >= 7 days,
+            lastRewardCollectedAfter - lastRewardCollectedBefore >= 7 days,
             "diff of last reward timestamp should be more than 7 days"
         );
     }
