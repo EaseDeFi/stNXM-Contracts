@@ -313,13 +313,13 @@ contract arNXMValultOldTest is Test {
     function testCollectReward_success() public {
         initializeV2();
         uint lastRewardBefore = arNXMVaultProxy.lastReward();
-        uint lastRewardCollectedBefore = arNXMVaultProxy.lastRewardCollected();
+        uint lastRewardCollectedBefore = arNXMVaultProxy.lastRewardTimestamp();
         vm.warp(block.timestamp + 7 days);
         vm.prank(address(1234), address(1234));
         arNXMVaultProxy.getRewardNxm();
         vm.stopPrank();
         uint lastRewardAfter = arNXMVaultProxy.lastReward();
-        uint lastRewardCollectedAfter = arNXMVaultProxy.lastRewardCollected();
+        uint lastRewardCollectedAfter = arNXMVaultProxy.lastRewardTimestamp();
 
         // as reward for v2 is not active yet lastRewardAfter should be 0
         require(lastRewardAfter == 0, "wrong reward after");
@@ -329,8 +329,8 @@ contract arNXMValultOldTest is Test {
         require(lastRewardBefore != 0, "last reward before should be > 0");
 
         require(
-            lastRewardCollectedAfter == lastRewardCollectedBefore,
-            "reward should not be active yet"
+            lastRewardCollectedAfter - lastRewardCollectedBefore >= 7 days,
+            "diff of last reward timestamp should be more than 7 days"
         );
     }
 

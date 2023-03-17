@@ -168,9 +168,6 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
     /// @dev tokenId to risk pool address
     mapping(uint256 => address) public tokenIdToPool;
 
-    /// @dev timestamp for last call to nexus pools get reward
-    uint256 public lastRewardCollected;
-
     /// @dev Nexus mutual staking NFT
     IStakingNFT public stakingNFT;
 
@@ -228,14 +225,14 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
      **/
     function initializeV2(
         IStakingNFT _stakingNFT,
-        uint[] memory _tokenIds,
+        uint256[] memory _tokenIds,
         address[] memory _riskPools
     ) external onlyOwner {
         require(address(stakingNFT) == address(0), "initialized already");
         require(_tokenIds.length == _riskPools.length, "length mismatch");
 
         tokenIds = _tokenIds;
-        for (uint i; i < _tokenIds.length; i++) {
+        for (uint256 i; i < _tokenIds.length; i++) {
             tokenIdToPool[_tokenIds[i]] = _riskPools[i];
         }
         stakingNFT = _stakingNFT;
@@ -374,13 +371,16 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
         );
         uint256 prevAum = aum();
         uint256 rewards;
-        for (uint i; i < tokenIds.length; i++) {
+        for (uint256 i; i < tokenIds.length; i++) {
             rewards += _getRewardsNxm(tokenIdToPool[tokenIds[i]], tokenIds[i]);
         }
 
+        // rewards to be given to users (full reward - admin reward - referral reward).
+        uint256 finalReward = _feeRewardsNxm(rewards);
+
         // update last reward
-        lastReward = rewards;
-        if (rewards > 0) {
+        lastReward = finalReward;
+        if (finalReward > 0) {
             emit NxmReward(rewards, block.timestamp, prevAum);
         }
         lastRewardTimestamp = block.timestamp;
@@ -407,13 +407,13 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
     }
 
     function aum() public view returns (uint256) {
-        uint stakedDeposit;
+        uint256 stakedDeposit;
         INFTDescriptor nftDescriptor = INFTDescriptor(
             stakingNFT.nftDescriptor()
         );
 
-        for (uint i; i < tokenIds.length; i++) {
-            (, uint totalStaked, ) = nftDescriptor.getActiveDeposits(
+        for (uint256 i; i < tokenIds.length; i++) {
+            (, uint256 totalStaked, ) = nftDescriptor.getActiveDeposits(
                 tokenIds[i],
                 tokenIdToPool[tokenIds[i]]
             );
@@ -540,22 +540,20 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
 
     /**
      * @dev Withdraw any available rewards from Nexus.
-     * @return finalReward The amount of rewards to be given to users (full reward - admin reward - referral reward).
+     * @return reward The amount of rewards collect from a risk pool.
      **/
     function _getRewardsNxm(
         address _poolAddress,
-        uint _tokenId
-    ) internal returns (uint256 finalReward) {
+        uint256 _tokenId
+    ) internal returns (uint256 reward) {
         IStakingPool pool = IStakingPool(_poolAddress);
 
-        // Find current reward, find user reward (transfers reward to admin within this).
-        (, uint256 fullReward) = pool.withdraw(
+        (, reward) = pool.withdraw(
             _tokenId,
             false,
             true,
             _getActiveTrancheIds()
         );
-        finalReward = _feeRewardsNxm(fullReward);
     }
 
     /**
@@ -590,7 +588,7 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
      **/
     function withdrawNxm(
         address _poolAddress,
-        uint _tokenId,
+        uint256 _tokenId,
         uint256[] memory _trancheIds
     ) external onlyOwner {
         _withdrawFromPool(_poolAddress, _tokenId, true, false, _trancheIds);
@@ -608,10 +606,10 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
      * @dev Used to stake nxm tokens to stake pool. it is determined manually
      **/
     function stakeNxm(
-        uint _amount,
+        uint256 _amount,
         address _poolAddress,
-        uint _trancheId,
-        uint _requestTokenId
+        uint256 _trancheId,
+        uint256 _requestTokenId
     ) external onlyOwner {
         _stakeNxm(_amount, _poolAddress, _trancheId, _requestTokenId);
     }
@@ -622,7 +620,7 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
      * @param _trancheIds tranches to unstake from
      **/
     function unstakeNxm(
-        uint _tokenId,
+        uint256 _tokenId,
         uint256[] memory _trancheIds
     ) external onlyOwner {
         _withdrawFromPool(
@@ -640,7 +638,7 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
      **/
     function _withdrawFromPool(
         address _poolAddress,
-        uint _tokenId,
+        uint256 _tokenId,
         bool _withdrawStake,
         bool _withdrawRewards,
         uint256[] memory _trancheIds
@@ -662,10 +660,10 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
      * @param _requestTokenId token id of NFT
      **/
     function _stakeNxm(
-        uint _amount,
+        uint256 _amount,
         address _poolAddress,
-        uint _trancheId,
-        uint _requestTokenId
+        uint256 _trancheId,
+        uint256 _requestTokenId
     ) internal {
         IStakingPool pool = IStakingPool(_poolAddress);
         uint256 balance = nxm.balanceOf(address(this));
@@ -678,7 +676,7 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
         );
 
         _approveNxm(_getTokenController(), _amount);
-        uint tokenId = pool.depositTo(
+        uint256 tokenId = pool.depositTo(
             _amount,
             _trancheId,
             _requestTokenId,
@@ -756,12 +754,12 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
 
     /// @dev get active trancheId's to collect rewards
     function _getActiveTrancheIds() internal view returns (uint256[] memory) {
-        uint8 trancheCount = 9;
-        uint trancheDuration = 91 days;
+        uint8 trancheCount = 3;
+        uint256 trancheDuration = 91 days;
         uint256[] memory _trancheIds = new uint256[](trancheCount);
 
         // assuming we have not collected rewards from last expired tranche
-        uint lastExpiredTrancheId = (block.timestamp / trancheDuration) - 1;
+        uint256 lastExpiredTrancheId = (block.timestamp / trancheDuration) - 1;
         for (uint256 i = 0; i < trancheCount; i++) {
             _trancheIds[i] = lastExpiredTrancheId + i;
         }
@@ -827,7 +825,7 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
     function transferERC721Token(
         address to,
         address tokenAddress,
-        uint tokenId
+        uint256 tokenId
     ) external onlyOwner {
         // owner of this contract should not be able to transfer nxmStakingNFT
         // as stake nft can be traded being able to transfer it may cause centralization
@@ -929,8 +927,8 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
      * @dev remove token id from tokenIds array
      * @param _index Index of the tokenId to remove
      **/
-    function removeTokenIdAtIndex(uint _index) external onlyOwner {
-        uint tokenId = tokenIds[_index];
+    function removeTokenIdAtIndex(uint256 _index) external onlyOwner {
+        uint256 tokenId = tokenIds[_index];
         tokenIds[_index] = tokenIds[tokenIds.length - 1];
         tokenIds.pop();
         // remove mapping to pool
