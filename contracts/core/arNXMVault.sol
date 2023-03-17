@@ -484,7 +484,6 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
         reward = _currentReward();
     }
 
-    // @todo will claims data not upgrade in v2?
     /**
      * @dev Anyone may call this function to pause withdrawals for a certain amount of time.
      *      We check Nexus contracts for a recent accepted claim, then can pause to avoid further withdrawals.
@@ -926,8 +925,16 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
         beneficiary = _newBeneficiary;
     }
 
-    function removeRiskPool(uint _tokenId) external onlyOwner {
-        delete tokenIdToPool[_tokenId];
+    /**
+     * @dev remove token id from tokenIds array
+     * @param _index Index of the tokenId to remove
+     **/
+    function removeTokenIdAtIndex(uint _index) external onlyOwner {
+        uint tokenId = tokenIds[_index];
+        tokenIds[_index] = tokenIds[tokenIds.length - 1];
+        tokenIds.pop();
+        // remove mapping to pool
+        delete tokenIdToPool[tokenId];
     }
 
     /**

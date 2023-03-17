@@ -176,4 +176,6 @@ interface IarNXMVault {
     function tokenIdToPool(uint tokenId) external view returns (address);
 
     function lastRewardCollected() external view returns (uint256);
+
+    function removeTokenIdAtIndex(uint _index) external;
 }
