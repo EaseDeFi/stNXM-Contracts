@@ -1,6 +1,7 @@
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-abi-exporter";
 import "hardhat-preprocessor";
+import "hardhat-deploy";
 import fs from "fs";
 import { HardhatUserConfig } from "hardhat/config";
 import { resolve } from "path";
@@ -87,6 +88,10 @@ const config: HardhatUserConfig = {
       rinkeby: process.env.ETHERSCAN_API_KEY || "",
       ropsten: process.env.ETHERSCAN_API_KEY || "",
     },
+  },
+  namedAccounts: {
+    deployer1: 0,
+    deployer2: 1,
   },
   gasReporter: {
     enabled: true,

@@ -10,6 +10,7 @@ src/types
 # Hardhat files
 cache
 artifacts
+deployments/
 
 # local files
 .openzeppelin/
@@ -20,3 +21,5 @@ out/
 
 ignore/
 old/
+
+Playground.sol
