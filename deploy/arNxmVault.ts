@@ -14,6 +14,17 @@ const deployArNxmImpl: DeployFunction = async function (
   const { deployer1 } = await getNamedAccounts();
   console.log(hre.network.name);
 
+  // fund deployer
+  if (hre.network.name === "tenderly") {
+    await hre.network.provider.send("tenderly_setBalance", [
+      [deployer1],
+      //amount in wei will be set for all wallets
+      ethers.utils.hexValue(
+        ethers.utils.parseUnits("1000", "ether").toHexString()
+      ),
+    ]);
+  }
+
   if (hre.network.name === "hardhat") {
     // fund the  deployer
     await hre.network.provider.send("hardhat_setBalance", [
