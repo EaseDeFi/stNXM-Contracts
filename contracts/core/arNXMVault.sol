@@ -378,7 +378,9 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
             rewards += _getRewardsNxm(tokenIdToPool[tokenIds[i]], tokenIds[i]);
         }
 
+        // rewards to be given to users (full reward - admin reward - referral reward).
         uint256 finalReward = _feeRewardsNxm(rewards);
+
         // update last reward
         lastReward = finalReward;
         if (finalReward > 0) {
@@ -541,7 +543,7 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
 
     /**
      * @dev Withdraw any available rewards from Nexus.
-     * @return reward The amount of rewards to be given to users (full reward - admin reward - referral reward).
+     * @return reward The amount of rewards collect from a risk pool.
      **/
     function _getRewardsNxm(
         address _poolAddress,
