@@ -168,9 +168,6 @@ contract arNXMVault is Ownable, ERC721TokenReceiver {
     /// @dev tokenId to risk pool address
     mapping(uint256 => address) public tokenIdToPool;
 
-    /// @dev timestamp for last call to nexus pools get reward
-    uint256 public lastRewardCollected;
-
     /// @dev Nexus mutual staking NFT
     IStakingNFT public stakingNFT;
 
