@@ -529,7 +529,9 @@ contract arNXMValultOldTest is Test {
         // as tokenIds length is 2 this should not revert
         arNXMVaultProxy.tokenIds(1);
 
-        address riskPoolBefore = arNXMVaultProxy.tokenIdToPool(tokenIdAtIndex0Before );
+        address riskPoolBefore = arNXMVaultProxy.tokenIdToPool(
+            tokenIdAtIndex0Before
+        );
 
         // remove one of tokenIds
         vm.startPrank(multisig);
@@ -540,12 +542,17 @@ contract arNXMValultOldTest is Test {
         vm.expectRevert();
         arNXMVaultProxy.tokenIds(1);
 
-        address riskPoolAfter = arNXMVaultProxy.tokenIdToPool(tokenIdAtIndex0Before);
+        address riskPoolAfter = arNXMVaultProxy.tokenIdToPool(
+            tokenIdAtIndex0Before
+        );
 
         require(riskPoolBefore != riskPoolAfter, "wrong risk pool");
         require(riskPoolAfter == address(0), "risk pool should be 0x0");
         uint tokenIdAtIndex0After = arNXMVaultProxy.tokenIds(0);
 
-        require(tokenIdAtIndex0After != tokenIdAtIndex0Before, "token id at index should change");
+        require(
+            tokenIdAtIndex0After != tokenIdAtIndex0Before,
+            "token id at index should change"
+        );
     }
 }

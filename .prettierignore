@@ -12,3 +12,7 @@ typechain
 # foundry
 lib/
 forge_cache/
+out/
+
+#hardhat
+deployments/
