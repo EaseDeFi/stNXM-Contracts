@@ -16,9 +16,6 @@ import "../interfaces/INexusMutual.sol";
 import "../interfaces/IRewardManager.sol";
 import "../interfaces/IShieldMining.sol";
 
-// @todo remove this
-import "forge-std/console.sol";
-
 // solhint-disable not-rely-on-time
 // solhint-disable reason-string
 // solhint-disable max-states-count
