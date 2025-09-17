@@ -70,9 +70,18 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
 /**************************************************************** Main ****************************************************************/
 /******************************************************************************************************************************************/
 
-    // Initialize here
-    function initialize(address _dex) external initializer {
+    function initialize(address _dex, address _wNxm, address _nxm, address _nxmMaster)
+        public
+    {
+        Ownable.initializeOwnable();
+        wNxm = IERC20(_wNxm);
+        nxm = IERC20(_nxm);
+        nxmMaster = INxmMaster(_nxmMaster);
         dex = _dex;
+        adminPercent = 100;
+        beneficiary = msg.sender;
+        // restakePeriod = 3 days;
+        rewardDuration = 7 days;
     }
 
     modifier notPaused {
@@ -85,9 +94,12 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
 /******************************************************************************************************************************************
 
     /**
-     * @dev Withdraw an amount of wNxm or NXM by burning arNxm.
-     * @param _stAmount The amount of arNxm to burn for the wNxm withdraw.
-     *
+     * @dev Underlying withdraw functions differently from ERC4626 because of the required delay.
+     * @param caller The caller of the function to withdraw.
+     * @param receiver The address to receive tokens from the withdraw.
+     * @param owner The owner of the tokens to withdraw.
+     * @param assets The amount of wNXM being withdrawn.
+     * @param shares The amount of stNXM being withdrawn.
      */
     function _withdraw(        
         address caller,
@@ -117,10 +129,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     }
 
     /**
-     * @dev Finalize withdraw request after withdrawal delay
-     * We need to adjust this so that it checks nAmount on withdraw request, then it checks again here, and the lower price is used.
-     * This is so that people both cannot get a fixed price for withdrawal (without slashing) right before we pause the contract,
-     * and so people cannot have an open request that continues gaining yield but that can be finalized at any time.
+     * @notice Finalize a withdraw request after the withdraw delay ends.
+     * @dev Only one withdraw request can be active at a time for a user so this needs no params.
      */
     function withdrawFinalize() external notPaused {
         address user = msg.sender;
@@ -143,8 +153,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     }
 
     /**
-     * @dev collect rewards from staking pool
-     * We probably want to upgrade this so that we store tranches for each
+     * @notice Collect all rewards from Nexus staking pool and from dex.
+     * @dev These rewards stream to users over the reward duration. Can be called by anyone once the duration is over.
      */
     function getRewardNxm() external  {
         // only allow to claim rewards after 1 week
@@ -168,18 +178,27 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         lastRewardTimestamp = block.timestamp;
     }
 
+    /**
+     * @notice Check and reset all active tranches for each NFT ID. Can be called by anyone.
+     */
     function resetTranches()
       public
     {
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            uint256[] memory tranches;
-            // Find tranches here and add to tokenIds
+            uint256[] memory futureTranches;
+            address _stakingPool = tokenIdToPool[tokenIds[i]];
+
+            for (uint256 j = 0; j < futureTranches.length; j++) {
+                uint256 trancheDeposit = StakingPool(_stakingPool).getDeposit(tokenIds[i], futureTranches[j]);
+                if (trancheDeposit > 0) tranches.push(futureTranches[j]);
+            }
+            
+            tokenIdsToTranches[tokenIds[i]] = tranches;
         }
     }
 
     /**
-     * @dev Collect fees from the Uni V3 pool
-     *
+     * @notice Collect fees from the Uni V3 pool
      */
     function collectDexFees(uint256 _tokenId)
         public
@@ -201,10 +220,9 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     }
 
     /**
-     * @dev Used to withdraw nxm from staking pool after tranche expires
-     * @param _tokenId Staking NFT token id
-     * @param _trancheIds tranches to unstake from
-     *
+     * @notice Unstake NXM from pools once the allocation has expired. Can be called by anyone.
+     * @param _tokenId Staking NFT token id.
+     * @param _trancheIds Tranches to unstake from.
      */
     function unstakeNxm(uint256 _tokenId, uint256[] memory _trancheIds) external {
         uint256 withdrawn = _withdrawFromPool(tokenIdToPool[_tokenId], _tokenId, true, false, _trancheIds);
@@ -217,8 +235,11 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
 /******************************************************************************************************************************************/
 
     /**
-     * @dev Used to stake nxm tokens to stake pool. it is determined manually
-     *
+     * @notice Owner can stake NXM to the desired pool and tranches. Privileged function.
+     * @param _amount Amount of NXM to stake into the pool.
+     * @param _poolAddress Address of the pool that we're staking to.
+     * @param _trancheId ID of the tranche to stake to.
+     * @param _requestTokenId Token ID we're adding to if it's already been minted.
      */
     function stakeNxm(uint256 _amount, address _poolAddress, uint256 _trancheId, uint256 _requestTokenId)
         external
@@ -228,11 +249,11 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     }
 
     /**
-     * @dev Extend deposit in staking pool
-     * @param _tokenId Staking NFT token id
-     * @param _initialTrancheId initial tranche id
-     * @param _newTrancheId new tranche id
-     * @param _topUpAmount top up amount
+     * @notice Extend deposit in a pool we're currently staked in..
+     * @param _tokenId Staking NFT token id.
+     * @param _initialTrancheId Initial tranche id
+     * @param _newTrancheId New tranche id.
+     * @param _topUpAmount Top up amount (0 if we're not adding anything).
      *
      */
     function extendDeposit(uint256 _tokenId, uint256 _initialTrancheId, uint256 _newTrancheId, uint256 _topUpAmount)
@@ -242,7 +263,16 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         IStakingPool(tokenIdToPool[_tokenId]).extendDeposit(_tokenId, _initialTrancheId, _newTrancheId, _topUpAmount);
     }
 
-   function mintNewPosition(uint256 amount0ToAdd, uint256 amount1ToAdd, uint128 _tickLower, uint128 _tickUpper)
+    /**
+     * @notice Used to mint a new Uni V3 position using funds from the stNXM pool.
+     * @dev When minting, wNXM is added to the pool from here but stNXM is minted directly to the pool.
+     *      Infinite amount of stNXM can be minted, only wNXM held by the contract can be added.
+     * @param amount0ToAdd wNXM amount to add in the new position.
+     * @param amount1ToAdd Amount of stNXM to mint to the Uni pool.
+     * @param _tickLower Low tick of the new position.
+     * @param _tickUpper High tick of the new position.
+     */
+    function mintNewPosition(uint256 amount0ToAdd, uint256 amount1ToAdd, uint128 _tickLower, uint128 _tickUpper)
         external
         onlyOwner
     {
@@ -276,6 +306,12 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         }
     }
 
+    /**
+     * @notice Increase liquidity in a token that the vault already owns.
+     * @param tokenId ID of the Uni NFT that we're adding to.
+     * @param amount0ToAdd wNXM amount to add to the range.
+     * @param amount1ToAdd stNXM amount to add to the range.
+     */
     function increaseLiquidityCurrentRange(
         uint256 tokenId,
         uint256 amount0ToAdd,
@@ -304,6 +340,11 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         }
     }
 
+    /**
+     * @notice Decrease liquidity in a token that the vault owns.
+     * @param tokenId ID of the Uni NFT that we're removing from.
+     * @param liquidity Amount of liquidity to remove from the token.
+     */
     function decreaseLiquidityCurrentRange(uint256 tokenId, uint128 liquidity)
         external
         onlyOwner
@@ -333,13 +374,18 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         }
     }
 
-    // deposit to morpho
-    // this also needs to be kept track of in assets
+    /**
+     * @notice Deposit wNXM to Morpho to be lent out with stNXM as collateral.
+     * @param _assetAmount Amount of wNXM to be lent out.
+     */
     function morphoDeposit(uint256 _assetAmount) external onlyOwner {
         morpho.deposit(_assetAmount, address(this));
     }
 
-    // withdraw from morpho
+    /**
+     * @notice Redeem Morpho assets to get wNXM back into the pool.
+     * @param _shareAmount Amount of Morpho shares to redeem for wNXM.
+     */
     function morphoRedeem(uint256 _shareAmount) external onlyOwner {
         morpho.redeem(_shareAmount, address(this));
     }
@@ -348,15 +394,25 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
 /**************************************************************** View ****************************************************************/
 /******************************************************************************************************************************************/
 
+    /**
+     * @notice Get total assets that the vault holds. 
+     * @dev This is important to overwrite because it must include wNXM currently being held,
+     *       NXM currently being staked, wNXM being lent out, wNXM being used as liquidity,
+     *       and account for tokens currently being withdrawn and rewards being distributed.
+     */
     function totalAssets() public view override returns (uint256) {
         // Add staked NXM, NXM in the contract, NXM in the dex and Morpho, subtract the recent chunk of reward from Nexus (because it's wrongfully included in balance),
         // add back in the amount that has been distributed so far, subtract the total amount that's waiting to be withdrawn.
         return _stakedNxm() + _unstakedNxm() - undistributedReward + distributedReward() - _totalPending();
     }
 
+    /**
+     * @notice Get the total supply of stNXM.
+     * @dev The stNXM in the dex is "virtual" so it must be removed from total supply.
+     */
     function totalSupply() public view override returns (uint256) {
         // Do not include the "virtual" assets in the Uniswap pool in total supply calculations.
-        return super.totalSupply() - dex.balance[1];
+        return super.totalSupply() - dex.balance1();
     }
 
     function _stakedNxm() internal view returns (uint256 assets) {
@@ -376,7 +432,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         morphoShares = morpho.balanceOf(address(this));
         assets += morpho.convertToAssets(morphoShares);
 
-        for (uint256 i = 0; i < dexTokenIds.length; i++) assets += dex.getPosition(dexTokenIds[i]).amount0;
+        for (uint256 i = 0; i < dexTokenIds.length; i++) assets += dex.positions(dexTokenIds[i]).amount0;
     }
 
     // Find the amount of wNXM that is pending to be withdrawn.
@@ -552,110 +608,6 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         require(token != address(wNxm), "Cannot rescue NXM");
         uint256 balance = IERC20(token).balanceOf(address(this));
         IERC20(token).safeTransfer(msg.sender, balance);
-    }
-
-}
-
-interface INonfungiblePositionManager {
-    struct MintParams {
-        address token0;
-        address token1;
-        uint24 fee;
-        int24 tickLower;
-        int24 tickUpper;
-        uint256 amount0Desired;
-        uint256 amount1Desired;
-        uint256 amount0Min;
-        uint256 amount1Min;
-        address recipient;
-        uint256 deadline;
-    }
-
-    function mint(MintParams calldata params)
-        external
-        payable
-        returns (
-            uint256 tokenId,
-            uint128 liquidity,
-            uint256 amount0,
-            uint256 amount1
-        );
-
-    struct IncreaseLiquidityParams {
-        uint256 tokenId;
-        uint256 amount0Desired;
-        uint256 amount1Desired;
-        uint256 amount0Min;
-        uint256 amount1Min;
-        uint256 deadline;
-    }
-
-    function increaseLiquidity(IncreaseLiquidityParams calldata params)
-        external
-        payable
-        returns (uint128 liquidity, uint256 amount0, uint256 amount1);
-
-    struct DecreaseLiquidityParams {
-        uint256 tokenId;
-        uint128 liquidity;
-        uint256 amount0Min;
-        uint256 amount1Min;
-        uint256 deadline;
-    }
-
-    function decreaseLiquidity(DecreaseLiquidityParams calldata params)
-        external
-        payable
-        returns (uint256 amount0, uint256 amount1);
-
-    struct CollectParams {
-        uint256 tokenId;
-        address recipient;
-        uint128 amount0Max;
-        uint128 amount1Max;
-    }
-
-    function collect(CollectParams calldata params)
-        external
-        payable
-        returns (uint256 amount0, uint256 amount1);
-}
-
-contract stOracle {
-
-    // This is equivalent to 50% per year.
-    // Way more than APY will ever be, but less
-    // than needed for a useful price manipulation.
-    uint256 constant saneApy = 5 * 1e17;
-    uint256 public constant startTime;
-
-    constructor() {
-        startTime = block.timestamp;
-    }
-
-    // Find the price of stNXM in wNXM
-    // Protections:
-    // stNxm price on the dex will be very difficult to be too high because
-    // minting is always available.
-    function price() external view returns (uint256 price) {
-        uint256 price = v3.getPrice(1e18);
-        // Check if it's over a 
-        require(sanePrice(price));
-
-        // Scale to meet Morpho standards
-        price = price * 1e36;
-    }
-
-    // Checks if the price isn't too high.
-    // Since the only reason price should increase is because of profits from staking,
-    // over 20% APY or so per year is an unreasonable gain and something is likely wrong.
-    function sanePrice(uint256 _price) public view returns (bool) {
-        // Amount of 1 year it's been
-        uint256 elapsedTime = block.timestamp - startTime;
-        // If price is lower than equal it's not too high.
-        if (_price < 1e18) return true;
-        uint256 apy = (_price - 1e18) * 31_536_000 / elapsedTime;
-        return apy <= saneApy;
     }
 
 }
