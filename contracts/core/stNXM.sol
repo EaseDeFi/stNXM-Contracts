@@ -15,8 +15,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
 
    struct WithdrawalRequest {
         uint48 requestTime;
-        uint104 nAmount;
-        uint104 arAmount;
+        uint104 assets;
+        uint104 shares;
     }
 
     event Deposit(address indexed user, uint256 asset, uint256 share, uint256 timestamp);
@@ -63,7 +63,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     mapping(uint256 => address) public tokenIdToPool;
     mapping(uint256 => uint256[]) public tokenIdToTranches;
 
-
+    // All withdrawal requests
     mapping(address => WithdrawalRequest) public withdrawals;
 
 /******************************************************************************************************************************************/
@@ -111,22 +111,19 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
       override
       notPaused
     {
-        // This amount must be determined before arNxm burn.
-        uint256 nAmount = convertToAssets(shares);
+        require((totalPending() + assets) <= wNxm.balanceOf(address(this)), "Not enough NXM available for withdrawal.");
 
-        require((totalPending() + nAmount) <= wNxm.balanceOf(address(this)), "Not enough NXM available for withdrawal.");
-
-        savedPending = savedPending + nAmount;
-        arNxm.safeTransferFrom(msg.sender, address(this), _stAmount);
+        savedPending = savedPending + assets;
+        arNxm.safeTransferFrom(msg.sender, address(this), shares);
         WithdrawalRequest memory prevWithdrawal = withdrawals[msg.sender];
         withdrawals[msg.sender] = WithdrawalRequest(
             uint48(block.timestamp),
-            prevWithdrawal.nAmount + uint104(nAmount),
-            prevWithdrawal.arAmount + uint104(_stAmount)
+            prevWithdrawal.assets + uint104(assets),
+            prevWithdrawal.shares + uint104(shares)
         );
 
-        emit WithdrawRequested(msg.sender, _stAmount, nAmount, block.timestamp, block.timestamp + withdrawDelay);
-    }
+        emit WithdrawRequested(msg.sender, shares, assets, block.timestamp, block.timestamp + withdrawDelay);
+       }
 
     /**
      * @notice Finalize a withdraw request after the withdraw delay ends.
@@ -137,19 +134,19 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         WithdrawalRequest memory withdrawal = withdrawals[user];
 
         uint256 currentAssetAmount = _convertToAssets(stAmount);
-        uint256 nAmount = uint256(withdrawal.nAmount) > currentAssetAmount ? currentAssetAmount : uint256(withdrawal.nAmount);
-        uint256 stAmount = uint256(withdrawal.stAmount);
+        uint256 assets = uint256(withdrawal.assets) > currentAssetAmount ? currentAssetAmount : uint256(withdrawal.assets);
+        uint256 shares = uint256(withdrawal.shares);
         uint256 requestTime = uint256(withdrawal.requestTime);
 
         require((requestTime + withdrawDelay) <= block.timestamp, "Not ready to withdraw");
-        require(nAmount > 0, "No pending amount to withdraw");
+        require(assets > 0, "No pending amount to withdraw");
 
-        _burn(address(this), stAmount);
-        wNxm.safeTransfer(user, nAmount);
+        _burn(address(this), shreas);
+        wNxm.safeTransfer(user, assets);
         delete withdrawals[user];
-        savedPending = savedPending - nAmount;
+        savedPending = savedPending - assets;
 
-        emit Withdrawal(user, nAmount, stAmount, block.timestamp);
+        emit Withdrawal(user, assets, shares, block.timestamp);
     }
 
     /**
@@ -415,6 +412,9 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         return super.totalSupply() - dex.balance1();
     }
 
+    /**
+     * @notice Full amount of NXM that's been staked.
+     */
     function _stakedNxm() internal view returns (uint256 assets) {
         uint256 stakedDeposit;
         INFTDescriptor nftDescriptor = INFTDescriptor(stakingNFT.nftDescriptor());
@@ -425,7 +425,9 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         }
     }
 
-    // Get the amount of NXM that's owned by this contract but is held elsewhere (specifically on a dex or lending protocol).
+    /**
+     * @notice Get all NXM that isn't staked. This includes current balance, lent in Morpho, and liquidity on Uni.
+     */
     function _unstakedNxm() internal view returns (uint256 assets) {
         assets = wNxm.balanceOf(address(this));
 
@@ -435,17 +437,20 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         for (uint256 i = 0; i < dexTokenIds.length; i++) assets += dex.positions(dexTokenIds[i]).amount0;
     }
 
-    // Find the amount of wNXM that is pending to be withdrawn.
-    // We pessimistically return the pending amount based on either saved at time of withdraw request or value today.
+    /**
+     * @notice Get the total amount of wNXM that's pending to be withdrawn.
+     * @dev We do this pessimistically. The lower conversion of where it was at the time of withdrawal vs.
+     *      where it is right now is used. This is necessary so that people cannot take advantage by withdrawing
+     *      early to avoid slashing, and they cannot initiate a withdrawal but continue to gain rewards.
+     */
     function _totalPending() internal view returns (uint256) {
         uint256 currentPending = _convertToAssets(balanceOf(address(this)), Math.Rounding.Floor);
         return savedPending < currentPending ? savedPending : currentPending;
     }
 
     /**
-     * @dev Calculate what the current reward is. We stream this to arNxm value to avoid dumps.
+     * @notice Calculate the amount of reward that has been distributed throughout this reward period.
      * @return reward Amount of reward currently calculated into arNxm value.
-     *
      */
     function _distributedReward() internal view returns (uint256 reward) {
         uint256 duration = rewardDuration;
@@ -466,6 +471,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     }
 
     /// @inheritdoc IERC4626
+    /// stNXM includes the inability to withdraw if the amount is over what's in the contract balance.
     function maxWithdraw(address owner) public view override returns (uint256) {
         uint256 ownerMax = _convertToAssets(balanceOf(owner), Math.Rounding.Floor);
         uint256 nBalance = wNxm.balanceOf(address(this));
@@ -473,6 +479,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     }
 
     /// @inheritdoc IERC4626
+    /// stNXM includes the inability to redeem if the amount is over what's in the contract balance.
     function maxRedeem(address owner) public view virtual returns (uint256) {
         uint256 nBalance = _convertToShares(wNxm.balanceOf(address(this)));
         uint256 ownerBalance = balanceOf(owner);
@@ -484,7 +491,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
 /******************************************************************************************************************************************/
 
     /**
-     * @dev Stake any wNxm over the amount we need to keep in reserve (bufferPercent% more than withdrawals last week).
+     * @notice Stake any amount of wNXM. 
+     * @dev All decisions on pools, amounts, tranches are manual.
      * @param _amount amount of NXM to stake
      * @param _poolAddress risk pool address
      * @param _trancheId tranche to stake NXM in
@@ -509,9 +517,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     }
 
     /**
-     * @dev Withdraw any Nxm we can from the staking pool.
+     * @notice Withdraw any Nxm we can from the staking pool.
      * @return amount The amount of funds that are being withdrawn.
-     *
      */
     function _withdrawFromPool(
         address _poolAddress,
@@ -525,7 +532,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     }
 
     /**
-     * @dev Find and distribute administrator rewards.
+     * @notice Find and distribute administrator rewards.
      * @param reward Full reward given from this week.
      * @return userReward Reward amount given to users (full reward - admin reward).
      *
@@ -544,13 +551,16 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
 /**************************************************************** Administrative ****************************************************************/
 /******************************************************************************************************************************************/
 
-    // Owner can pause to stop withdrawing from occurring.
+    /**
+     * @notice Owner can pause the contract at any time. This is used in case a hack occurs and slashing must happen before withdrawals.
+     * @dev Ideally a Nexus-owned multisig has control over the contract so a malicious owner cannot permanently pause.
+     */.
     function togglePause() external onlyOwner {
         paused = !paused;
     }
 
     /**
-     * @dev Owner may change the withdraw delay.
+     * @notice Owner may change the amount of delay required for a withdrawal.
      * @param _withdrawDelay Withdraw delay.
      *
      */
