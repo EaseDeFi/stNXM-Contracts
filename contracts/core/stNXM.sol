@@ -45,8 +45,6 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     uint256 public rewardDuration;
     // Withdrawals may be paused if a hack has recently happened. Timestamp of when the pause happened.
     uint256 public paused;
-    // Amount of time withdrawals may be paused after a hack.
-    uint256 public pauseDuration;
     // Address that will receive administration funds from the contract.
     address public beneficiary;
     // Percent of funds to be distributed for administration of the contract. 10 == 1%; 1000 == 100%.
@@ -80,7 +78,6 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         dex = _dex;
         adminPercent = 100;
         beneficiary = msg.sender;
-        // restakePeriod = 3 days;
         rewardDuration = 7 days;
     }
 
@@ -211,7 +208,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
                 position.tickUpper       // upper tick of the position
             );
 
-            // Burn the "virtual" stNXM
+            // Burn the stNXM fees.
             if (amount1 > 0) _burn(address(this), amount1);
         }
     }
@@ -223,8 +220,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
      */
     function unstakeNxm(uint256 _tokenId, uint256[] memory _trancheIds) external {
         uint256 withdrawn = _withdrawFromPool(tokenIdToPool[_tokenId], _tokenId, true, false, _trancheIds);
-        nxm.approve(address(wNxm), _amount);
-        IWNXM(address(wNxm)).wrap(_amount);
+        nxm.approve(address(wNxm), withdrawn);
+        IWNXM(address(wNxm)).wrap(withdrawn);
     }
 
 /******************************************************************************************************************************************/
@@ -246,7 +243,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     }
 
     /**
-     * @notice Extend deposit in a pool we're currently staked in..
+     * @notice Extend deposit in a pool we're currently staked in.
      * @param _tokenId Staking NFT token id.
      * @param _initialTrancheId Initial tranche id
      * @param _newTrancheId New tranche id.
@@ -302,6 +299,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
             _burn(address(this), refund);
         }
     }
+
+    // Should I make this only able to be done once? 
 
     /**
      * @notice Increase liquidity in a token that the vault already owns.
@@ -409,7 +408,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
      */
     function totalSupply() public view override returns (uint256) {
         // Do not include the "virtual" assets in the Uniswap pool in total supply calculations.
-        return super.totalSupply() - dex.balance1();
+        (, uint256 amountShares) = _dexBalances();
+        return super.totalSupply() - amountShares;
     }
 
     /**
@@ -420,6 +420,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         INFTDescriptor nftDescriptor = INFTDescriptor(stakingNFT.nftDescriptor());
 
         for (uint256 i; i < tokenIds.length; i++) {
+            // todo: Need to check but I believe this may cause problems with expired stakes
             (, uint256 totalStaked,) = nftDescriptor.getActiveDeposits(tokenIds[i], tokenIdToPool[tokenIds[i]]);
             assets += totalStaked;
         }
@@ -434,7 +435,24 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         morphoShares = morpho.balanceOf(address(this));
         assets += morpho.convertToAssets(morphoShares);
 
-        for (uint256 i = 0; i < dexTokenIds.length; i++) assets += dex.positions(dexTokenIds[i]).amount0;
+        (uint256 amountAssets, ) = _dexBalances();
+        assets += amountAssets;
+    }
+
+    /**
+     * @notice Find balances of both wNXM and stNXM within the Uniswap pool this contract uses.
+     */
+    function _dexBalances() internal view returns (uint256 amount0, uint256 amount1) {
+        // All dex positions will be in the same pool, so total liquidity is the same.
+        uint256 totalLiquidity = dex.liquidity();
+        uint256 totalAmount0 = wnxm.balanceOf(dex);
+        uint256 totalAmount1 = stnxm.balanceOf(dex);
+
+        for (uint256 i = 0; i < dexTokenIds.length; i++) {
+            posLiquidity += dex.positions(dexTokenIds[i]).liquidity;
+            amount0 += posLiquidity * totalAmount0 / totalLiquidity;
+            amount1 += posLiquidity * totalAmount1 / totalLiquidity;
+        }
     }
 
     /**
@@ -474,16 +492,16 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     /// stNXM includes the inability to withdraw if the amount is over what's in the contract balance.
     function maxWithdraw(address owner) public view override returns (uint256) {
         uint256 ownerMax = _convertToAssets(balanceOf(owner), Math.Rounding.Floor);
-        uint256 nBalance = wNxm.balanceOf(address(this));
-        return nBalance > ownerMax ? ownerMax : nBalance;
+        uint256 assetBalance = wNxm.balanceOf(address(this));
+        return assetBalance > ownerMax ? ownerMax : assetBalance;
     }
 
     /// @inheritdoc IERC4626
     /// stNXM includes the inability to redeem if the amount is over what's in the contract balance.
     function maxRedeem(address owner) public view virtual returns (uint256) {
-        uint256 nBalance = _convertToShares(wNxm.balanceOf(address(this)));
+        uint256 assetBalance = _convertToShares(wNxm.balanceOf(address(this)));
         uint256 ownerBalance = balanceOf(owner);
-        return nBalance > ownerBalance ? ownerBalance : nBalance;
+        return assetBalance > ownerBalance ? ownerBalance : assetBalance;
     }
 
 /******************************************************************************************************************************************/
@@ -554,7 +572,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     /**
      * @notice Owner can pause the contract at any time. This is used in case a hack occurs and slashing must happen before withdrawals.
      * @dev Ideally a Nexus-owned multisig has control over the contract so a malicious owner cannot permanently pause.
-     */.
+     * @todo Make sure pause has breaks in between pauses so a malicious owner cannot keep it paused forever
+     */
     function togglePause() external onlyOwner {
         paused = !paused;
     }

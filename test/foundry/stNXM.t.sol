@@ -132,22 +132,13 @@ contract arNXMValultOldTest is Test {
         initializeV2();
 
         uint256 vaultNXMBalance = nxm.balanceOf(address(arNXMVaultProxy));
-        uint256 aum = arNXMVaultProxy.aum();
+        uint256 aum = stNXM.totalAssets();
 
         // from data
         uint256 nxmStakedInAAPool = 27701e18; // approx staked to AA pool
         uint256 nxmStakedInAAAPool = 83103e18; // approx staked to AAA pool
 
         require(aum >= (vaultNXMBalance + nxmStakedInAAPool + nxmStakedInAAAPool), "Incorrect Aum");
-    }
-
-    function testCollectV1PendingRewards() public {
-        // test existing rewards probably about 24 NXM
-        uint256 nxmBalBefore = nxm.balanceOf(address(arNXMVaultProxy));
-        initializeV2();
-        uint256 nxmBalAfter = nxm.balanceOf(address(arNXMVaultProxy));
-
-        require((nxmBalAfter - nxmBalBefore) > 23e18, "not able to collect pending rewards");
     }
 
     function testTokenValues() public {

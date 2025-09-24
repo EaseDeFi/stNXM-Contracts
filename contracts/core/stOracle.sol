@@ -15,7 +15,7 @@ contract stOracle {
     // stNxm price on the dex will be very difficult to be too high because
     // minting is always available.
     function price() external view returns (uint256 price) {
-        uint256 price = v3.getPrice(1e18);
+        uint256 price = dex.getPrice(1e18);
         // Check if it's over a 
         require(sanePrice(price));
 
