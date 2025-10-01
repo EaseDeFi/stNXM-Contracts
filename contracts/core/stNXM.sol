@@ -1,17 +1,17 @@
-/*
+pragma solidity ^0.8.26;
 
-    Have a general arNXM staking setup. But include:
-    1. Full pause when a hack occurs to stop withdrawals but allow deposits
-    2. Ability to deposit to Uni V3, collect fees, add virtual stNXM, and have AUM exclude pool
-    3. Required 2 day pause on withdrawal
-
-*/
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol';
-import 'INonFungiblePositionManager.sol';
-import 'IMorpho.sol';
 
+import "../general/Ownable.sol";
+import "../general/ERC721TokenReceiver.sol";
 
-contract stNXM is ERC4626, ERC721TokenReceiver {
+import '../interfaces/INonfungiblePositionManager.sol';
+import '../interfaces/IMorpho.sol';
+import "../interfaces/IWNXM.sol";
+import "../interfaces/INexusMutual.sol";
+
+contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
+    using SafeERC20 for IERC20;
 
    struct WithdrawalRequest {
         uint48 requestTime;
@@ -33,8 +33,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     INxmMaster public nxmMaster;
     /// @dev Nexus mutual staking NFT
     IStakingNFT public stakingNFT;
-    address public morphoToken;
-    INonFungiblePositionManager public dex;
+    IMorpho public morpho;
+    INonfungiblePositionManager public dex;
 
     uint256 public lastRewardTimestamp;
     // Delay to withdraw
@@ -44,7 +44,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     // Amount of time that rewards are distributed over.
     uint256 public rewardDuration;
     // Withdrawals may be paused if a hack has recently happened. Timestamp of when the pause happened.
-    uint256 public paused;
+    bool public paused;
     // Address that will receive administration funds from the contract.
     address public beneficiary;
     // Percent of funds to be distributed for administration of the contract. 10 == 1%; 1000 == 100%.
@@ -68,17 +68,21 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
 /**************************************************************** Main ****************************************************************/
 /******************************************************************************************************************************************/
 
-    function initialize(address _dex, address _wNxm, address _nxm, address _nxmMaster)
+    constructor(IERC20 _wNxm) ERC4626(_wNxm) {}
+
+    function initialize(address _dex, address _wNxm, address _nxm, address _nxmMaster, address _morpho)
         public
     {
         Ownable.initializeOwnable();
         wNxm = IERC20(_wNxm);
         nxm = IERC20(_nxm);
         nxmMaster = INxmMaster(_nxmMaster);
-        dex = _dex;
+        morpho = IMorpho(_morpho);
+        dex = INonfungiblePositionManager(_dex);
         adminPercent = 100;
         beneficiary = msg.sender;
         rewardDuration = 7 days;
+        _mintNewPosition(5000 ether, 5000 ether, 0, type(uint128).max);
     }
 
     modifier notPaused {
@@ -108,10 +112,10 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
       override
       notPaused
     {
-        require((totalPending() + assets) <= wNxm.balanceOf(address(this)), "Not enough NXM available for withdrawal.");
+        require((_totalPending() + assets) <= wNxm.balanceOf(address(this)), "Not enough NXM available for withdrawal.");
 
         savedPending = savedPending + assets;
-        arNxm.safeTransferFrom(msg.sender, address(this), shares);
+        _transfer(msg.sender, address(this), shares);
         WithdrawalRequest memory prevWithdrawal = withdrawals[msg.sender];
         withdrawals[msg.sender] = WithdrawalRequest(
             uint48(block.timestamp),
@@ -130,15 +134,15 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         address user = msg.sender;
         WithdrawalRequest memory withdrawal = withdrawals[user];
 
-        uint256 currentAssetAmount = _convertToAssets(stAmount);
-        uint256 assets = uint256(withdrawal.assets) > currentAssetAmount ? currentAssetAmount : uint256(withdrawal.assets);
         uint256 shares = uint256(withdrawal.shares);
+        uint256 currentAssetAmount = _convertToAssets(shares);
+        uint256 assets = uint256(withdrawal.assets) > currentAssetAmount ? currentAssetAmount : uint256(withdrawal.assets);
         uint256 requestTime = uint256(withdrawal.requestTime);
 
         require((requestTime + withdrawDelay) <= block.timestamp, "Not ready to withdraw");
         require(assets > 0, "No pending amount to withdraw");
 
-        _burn(address(this), shreas);
+        _burn(address(this), shares);
         wNxm.safeTransfer(user, assets);
         delete withdrawals[user];
         savedPending = savedPending - assets;
@@ -157,7 +161,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         uint256 rewards;
         for (uint256 i; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
-            rewards += _withdrawFromPool(tokenIdToPool[tokenId], tokenId, false, true, tokenIdsToTranches[tokenId]);
+            rewards += _withdrawFromPool(tokenIdToPool[tokenId], tokenId, false, true, tokenIdToTranches[tokenId]);
         }
 
         // Rewards to be given to users (full reward - admin reward).
@@ -167,7 +171,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         collectDexFees();
 
         // update last reward
-        undistributedReward = finalReward;
+        lastReward = finalReward;
         if (finalReward > 0) emit NxmReward(rewards, block.timestamp, prevAum);
         lastRewardTimestamp = block.timestamp;
     }
@@ -178,27 +182,29 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     function resetTranches()
       public
     {
+        // Get IDs for the next 2 years of tranches
+        uint256[] memory futureTranches = _getFutureTranches();
+
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            uint256[] memory futureTranches;
-            address _stakingPool = tokenIdToPool[tokenIds[i]];
+            uint256 id = tokenIds[i];
+            address _stakingPool = tokenIdToPool[id];
+            delete tokenIdToTranches[id];
 
             for (uint256 j = 0; j < futureTranches.length; j++) {
-                uint256 trancheDeposit = StakingPool(_stakingPool).getDeposit(tokenIds[i], futureTranches[j]);
-                if (trancheDeposit > 0) tranches.push(futureTranches[j]);
+                uint256 trancheDeposit = IStakingPool(_stakingPool).getDeposit(id, futureTranches[j]);
+                if (trancheDeposit > 0) tokenIdToTranches[id].push(futureTranches[j]);
             }
-            
-            tokenIdsToTranches[tokenIds[i]] = tranches;
         }
     }
 
     /**
      * @notice Collect fees from the Uni V3 pool
      */
-    function collectDexFees(uint256 _tokenId)
+    function collectDexFees()
         public
     {
-        for (uint256 i = 0; i < dexNfts.length; i++) {
-            INonfungiblePositionManager.Position memory position = dex.positions(dexTokenIds[i]);
+        for (uint256 i = 0; i < dexTokenIds.length; i++) {
+            INonfungiblePositionManager position = dex.positions(dexTokenIds[i]);
 
             // amount0 is wNXM
             // amount1 is stNXM
@@ -258,82 +264,19 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     }
 
     /**
-     * @notice Used to mint a new Uni V3 position using funds from the stNXM pool.
-     * @dev When minting, wNXM is added to the pool from here but stNXM is minted directly to the pool.
-     *      Infinite amount of stNXM can be minted, only wNXM held by the contract can be added.
-     * @param amount0ToAdd wNXM amount to add in the new position.
-     * @param amount1ToAdd Amount of stNXM to mint to the Uni pool.
-     * @param _tickLower Low tick of the new position.
-     * @param _tickUpper High tick of the new position.
+     * @notice Deposit wNXM to Morpho to be lent out with stNXM as collateral.
+     * @param _assetAmount Amount of wNXM to be lent out.
      */
-    function mintNewPosition(uint256 amount0ToAdd, uint256 amount1ToAdd, uint128 _tickLower, uint128 _tickUpper)
-        external
-        onlyOwner
-    {
-        wNxm.approve(address(nonfungiblePositionManager), amount0ToAdd);
-        _mint(address(this), amount1ToAdd);
-        approve(address(nonfungiblePositionManager), amount1ToAdd);
-
-        INonfungiblePositionManager.MintParams memory params =
-        INonfungiblePositionManager.MintParams({
-            token0: address(wNxm),
-            token1: address(this),
-            fee: 3000,
-            tickLower: _tickLower,
-            tickUpper: _tickUpper,
-            amount0Desired: amount0ToAdd,
-            amount1Desired: amount1ToAdd,
-            amount0Min: 0,
-            amount1Min: 0,
-            recipient: address(this),
-            deadline: block.timestamp
-        });
-
-        (tokenId, liquidity, amount0, amount1) = dex.mint(params);
-
-        dexTokenIds.push(tokenId);
-
-        // Get rid of any stNXM tokens.
-        if (amount1 < amount1ToAdd) {
-            uint256 refund = amount1ToAdd - amount1;
-            _burn(address(this), refund);
-        }
+    function morphoDeposit(uint256 _assetAmount) external onlyOwner {
+        morpho.deposit(_assetAmount, address(this));
     }
 
-    // Should I make this only able to be done once? 
-
     /**
-     * @notice Increase liquidity in a token that the vault already owns.
-     * @param tokenId ID of the Uni NFT that we're adding to.
-     * @param amount0ToAdd wNXM amount to add to the range.
-     * @param amount1ToAdd stNXM amount to add to the range.
+     * @notice Redeem Morpho assets to get wNXM back into the pool.
+     * @param _shareAmount Amount of Morpho shares to redeem for wNXM.
      */
-    function increaseLiquidityCurrentRange(
-        uint256 tokenId,
-        uint256 amount0ToAdd,
-        uint256 amount1ToAdd
-    ) external onlyOwner {
-        wNxm.approve(address(nonfungiblePositionManager), amount0ToAdd);
-        _mint(address(this), amount1ToAdd);
-        approve(address(nonfungiblePositionManager), amount1ToAdd);
-
-        INonfungiblePositionManager.IncreaseLiquidityParams memory params =
-        INonfungiblePositionManager.IncreaseLiquidityParams({
-            tokenId: tokenId,
-            amount0Desired: amount0ToAdd,
-            amount1Desired: amount1ToAdd,
-            amount0Min: 0,
-            amount1Min: 0,
-            deadline: block.timestamp
-        });
-
-        (liquidity, amount0, amount1) = dex.increaseLiquidity(params);
-
-        // Get rid of any stNXM tokens.
-        if (amount1 < amount1ToAdd) {
-            uint256 refund = amount1ToAdd - amount1;
-            _burn(address(this), refund);
-        }
+    function morphoRedeem(uint256 _shareAmount) external onlyOwner {
+        morpho.redeem(_shareAmount, address(this));
     }
 
     /**
@@ -354,13 +297,13 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
             deadline: block.timestamp
         });
 
-        (amount0, amount1) = dex.decreaseLiquidity(params);
+        (uint256 amount0, uint256 amount1) = dex.decreaseLiquidity(params);
 
         // Burn stNXM that was removed.
         if (amount1 > 0) _burn(address(this), amount1);
 
         // If we're removing all liquidity, remove from tokenIds.
-        if (dex.position(tokenId).amount0 == 0) {
+        if (dex.positions(tokenId).amount0 == 0) {
             for (uint256 i = 0; i < dexTokenIds.length; i++) {
                 if (tokenId == dexTokenIds[i]) {
                     dexTokenIds[i] = dexTokenIds[dexTokenIds.length - 1];
@@ -368,22 +311,6 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
                 }
             }
         }
-    }
-
-    /**
-     * @notice Deposit wNXM to Morpho to be lent out with stNXM as collateral.
-     * @param _assetAmount Amount of wNXM to be lent out.
-     */
-    function morphoDeposit(uint256 _assetAmount) external onlyOwner {
-        morpho.deposit(_assetAmount, address(this));
-    }
-
-    /**
-     * @notice Redeem Morpho assets to get wNXM back into the pool.
-     * @param _shareAmount Amount of Morpho shares to redeem for wNXM.
-     */
-    function morphoRedeem(uint256 _shareAmount) external onlyOwner {
-        morpho.redeem(_shareAmount, address(this));
     }
 
 /******************************************************************************************************************************************/
@@ -399,14 +326,14 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     function totalAssets() public view override returns (uint256) {
         // Add staked NXM, NXM in the contract, NXM in the dex and Morpho, subtract the recent chunk of reward from Nexus (because it's wrongfully included in balance),
         // add back in the amount that has been distributed so far, subtract the total amount that's waiting to be withdrawn.
-        return _stakedNxm() + _unstakedNxm() - undistributedReward + distributedReward() - _totalPending();
+        return _stakedNxm() + _unstakedNxm() - lastReward + _distributedReward() - _totalPending();
     }
 
     /**
      * @notice Get the total supply of stNXM.
      * @dev The stNXM in the dex is "virtual" so it must be removed from total supply.
      */
-    function totalSupply() public view override returns (uint256) {
+    function totalSupply() public view override(ERC20, IERC20) returns (uint256) {
         // Do not include the "virtual" assets in the Uniswap pool in total supply calculations.
         (, uint256 amountShares) = _dexBalances();
         return super.totalSupply() - amountShares;
@@ -420,7 +347,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         INFTDescriptor nftDescriptor = INFTDescriptor(stakingNFT.nftDescriptor());
 
         for (uint256 i; i < tokenIds.length; i++) {
-            // todo: Need to check but I believe this may cause problems with expired stakes
+            // Need to check but I believe this may cause problems with expired stakes
             (, uint256 totalStaked,) = nftDescriptor.getActiveDeposits(tokenIds[i], tokenIdToPool[tokenIds[i]]);
             assets += totalStaked;
         }
@@ -432,7 +359,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     function _unstakedNxm() internal view returns (uint256 assets) {
         assets = wNxm.balanceOf(address(this));
 
-        morphoShares = morpho.balanceOf(address(this));
+        uint256 morphoShares = morpho.balanceOf(address(this));
         assets += morpho.convertToAssets(morphoShares);
 
         (uint256 amountAssets, ) = _dexBalances();
@@ -445,14 +372,14 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     function _dexBalances() internal view returns (uint256 amount0, uint256 amount1) {
         // All dex positions will be in the same pool, so total liquidity is the same.
         uint256 totalLiquidity = dex.liquidity();
-        uint256 totalAmount0 = wnxm.balanceOf(dex);
-        uint256 totalAmount1 = stnxm.balanceOf(dex);
+        uint256 totalAmount0 = wNxm.balanceOf(dex);
+        uint256 totalAmount1 = balanceOf(dex);
 
-        for (uint256 i = 0; i < dexTokenIds.length; i++) {
-            posLiquidity += dex.positions(dexTokenIds[i]).liquidity;
-            amount0 += posLiquidity * totalAmount0 / totalLiquidity;
-            amount1 += posLiquidity * totalAmount1 / totalLiquidity;
-        }
+        uint256 posLiquidity;
+        for (uint256 i = 0; i < dexTokenIds.length; i++) posLiquidity += uint256(dex.positions(dexTokenIds[i]).liquidity);
+        
+        amount0 += posLiquidity * totalAmount0 / totalLiquidity;
+        amount1 += posLiquidity * totalAmount1 / totalLiquidity;
     }
 
     /**
@@ -488,17 +415,15 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         }
     }
 
-    /// @inheritdoc IERC4626
     /// stNXM includes the inability to withdraw if the amount is over what's in the contract balance.
-    function maxWithdraw(address owner) public view override returns (uint256) {
+    function maxWithdraw(address owner) public view override(ERC4626) returns (uint256) {
         uint256 ownerMax = _convertToAssets(balanceOf(owner), Math.Rounding.Floor);
         uint256 assetBalance = wNxm.balanceOf(address(this));
         return assetBalance > ownerMax ? ownerMax : assetBalance;
     }
 
-    /// @inheritdoc IERC4626
     /// stNXM includes the inability to redeem if the amount is over what's in the contract balance.
-    function maxRedeem(address owner) public view virtual returns (uint256) {
+    function maxRedeem(address owner) public view override(ERC4626) returns (uint256) {
         uint256 assetBalance = _convertToShares(wNxm.balanceOf(address(this)));
         uint256 ownerBalance = balanceOf(owner);
         return assetBalance > ownerBalance ? ownerBalance : assetBalance;
@@ -524,7 +449,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
 
         IStakingPool pool = IStakingPool(_poolAddress);
         uint256 tokenId = pool.depositTo(_amount, _trancheId, _requestTokenId, address(this));
-        tokenIdsToTranches[tokenId].push(_trancheId);
+        tokenIdToTranches[tokenId].push(_trancheId);
         // if new nft token is minted we need to keep track of
         // tokenId and poolAddress inorder to calculate assets
         // under management
@@ -565,6 +490,65 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
         userReward = reward - adminReward;
     }
 
+    /**
+     * @notice Used to mint a new Uni V3 position using funds from the stNXM pool. Only used once.
+     * @dev When minting, wNXM is added to the pool from here but stNXM is minted directly to the pool.
+     *      Infinite amount of stNXM can be minted, only wNXM held by the contract can be added.
+     * @param amount0ToAdd wNXM amount to add in the new position.
+     * @param amount1ToAdd Amount of stNXM to mint to the Uni pool.
+     * @param _tickLower Low tick of the new position.
+     * @param _tickUpper High tick of the new position.
+     */
+    function _mintNewPosition(uint256 amount0ToAdd, uint256 amount1ToAdd, uint128 _tickLower, uint128 _tickUpper)
+        internal
+    {
+        // make a better initializer
+        require(lastRewardTimestamp == 0, "May only be minted on initialization.");
+
+        wNxm.approve(address(dex), amount0ToAdd);
+        _mint(address(this), amount1ToAdd);
+        approve(address(dex), amount1ToAdd);
+
+        INonfungiblePositionManager.MintParams memory params =
+        INonfungiblePositionManager.MintParams({
+            token0: address(wNxm),
+            token1: address(this),
+            fee: 3000,
+            tickLower: _tickLower,
+            tickUpper: _tickUpper,
+            amount0Desired: amount0ToAdd,
+            amount1Desired: amount1ToAdd,
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: address(this),
+            deadline: block.timestamp
+        });
+
+        (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) = dex.mint(params);
+
+        dexTokenIds.push(tokenId);
+
+        // Get rid of any stNXM tokens.
+        if (amount1 < amount1ToAdd) {
+            uint256 refund = amount1ToAdd - amount1;
+            _burn(address(this), refund);
+        }
+    }
+
+    /// @dev get future tranche IDs to collect rewards
+    function _getFutureTranches() internal view returns (uint256[] memory) {
+        uint8 trancheCount = 8;
+        uint256 trancheDuration = 91 days;
+        uint256[] memory _trancheIds = new uint256[](trancheCount);
+
+        // assuming we have not collected rewards from last expired tranche
+        uint256 lastExpiredTrancheId = (block.timestamp / trancheDuration) - 1;
+        for (uint256 i = 0; i < trancheCount; i++) {
+            _trancheIds[i] = lastExpiredTrancheId + i;
+        }
+        return _trancheIds;
+    }
+
 /******************************************************************************************************************************************/
 /**************************************************************** Administrative ****************************************************************/
 /******************************************************************************************************************************************/
@@ -572,7 +556,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver {
     /**
      * @notice Owner can pause the contract at any time. This is used in case a hack occurs and slashing must happen before withdrawals.
      * @dev Ideally a Nexus-owned multisig has control over the contract so a malicious owner cannot permanently pause.
-     * @todo Make sure pause has breaks in between pauses so a malicious owner cannot keep it paused forever
+     * Make sure pause has breaks in between pauses so a malicious owner cannot keep it paused forever
      */
     function togglePause() external onlyOwner {
         paused = !paused;

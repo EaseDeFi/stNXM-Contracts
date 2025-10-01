@@ -1,3 +1,8 @@
+pragma solidity ^0.8.26;
+
+import '../interfaces/INonfungiblePositionManager.sol';
+
+
 contract stOracle {
 
     // This is equivalent to 50% per year.
@@ -5,22 +10,24 @@ contract stOracle {
     // than needed for a useful price manipulation.
     uint256 constant saneApy = 5 * 1e17;
     uint256 public constant startTime;
+    address public dex;
 
-    constructor() {
+    constructor(address _dex) {
         startTime = block.timestamp;
+        dex = INonfungiblePositionManager(_dex);
     }
 
     // Find the price of stNXM in wNXM
     // Protections:
     // stNxm price on the dex will be very difficult to be too high because
     // minting is always available.
-    function price() external view returns (uint256 price) {
-        uint256 price = dex.getPrice(1e18);
+    function price() external view returns (uint256 dexPrice) {
+        dexPrice = dex.getPrice(1e18);
         // Check if it's over a 
-        require(sanePrice(price));
+        require(sanePrice(dexPrice));
 
         // Scale to meet Morpho standards
-        price = price * 1e36;
+        dexPrice = dexPrice * 1e36;
     }
 
     // Checks if the price isn't too high.
