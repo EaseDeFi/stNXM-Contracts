@@ -1,6 +1,7 @@
 pragma solidity ^0.8.26;
 
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol';
+import '../libraries/v3-core/PositionValue.sol';
 
 import "../general/Ownable.sol";
 import "../general/ERC721TokenReceiver.sol";
@@ -22,7 +23,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     event Deposit(address indexed user, uint256 asset, uint256 share, uint256 timestamp);
     event WithdrawRequested(address indexed user, uint256 share, uint256 asset, uint256 requestTime, uint256 withdrawTime);
     event Withdrawal(address indexed user, uint256 asset, uint256 share, uint256 timestamp);
-    event NxmReward(uint256 reward, uint256 timestamp, uint256 totalAum);
+    event NxmReward(uint256 reward, uint256 timestamp);
 
     uint256 private constant DENOMINATOR = 1000;
 
@@ -34,23 +35,25 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     /// @dev Nexus mutual staking NFT
     IStakingNFT public stakingNFT;
     IMorpho public morpho;
-    INonfungiblePositionManager public dex;
+    INonfungiblePositionManager public nfp;
+    IUniswapV3Pool public dex;
 
-    uint256 public lastRewardTimestamp;
     // Delay to withdraw
     uint256 public withdrawDelay;
     // Total saved amount of withdrawals pending.
     uint256 public savedPending;
-    // Amount of time that rewards are distributed over.
-    uint256 public rewardDuration;
     // Withdrawals may be paused if a hack has recently happened. Timestamp of when the pause happened.
     bool public paused;
     // Address that will receive administration funds from the contract.
     address public beneficiary;
     // Percent of funds to be distributed for administration of the contract. 10 == 1%; 1000 == 100%.
     uint256 public adminPercent;
+    // Amount of fees owed to the admin.
+    uint256 public adminFees;
     // The amount of the last reward.
-    uint256 public lastReward;
+    uint256 public lastTotal;
+    // The amount of stake on last update. Needed to make sure a balance change isn't an unstake.
+    uint256 public lastStake;
 
     // Ids for Uniswap NFTs
     uint256[] public dexTokenIds;
@@ -68,9 +71,9 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
 /**************************************************************** Main ****************************************************************/
 /******************************************************************************************************************************************/
 
-    constructor(IERC20 _wNxm) ERC4626(_wNxm) {}
+    constructor(IERC20 _wNxm) ERC4626(_wNxm) ERC20("Staked NXM", "stNXM") {}
 
-    function initialize(address _dex, address _wNxm, address _nxm, address _nxmMaster, address _morpho)
+    function initialize(address _dex, address _nfp, address _wNxm, address _nxm, address _nxmMaster, address _morpho)
         public
     {
         Ownable.initializeOwnable();
@@ -78,11 +81,26 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
         nxm = IERC20(_nxm);
         nxmMaster = INxmMaster(_nxmMaster);
         morpho = IMorpho(_morpho);
-        dex = INonfungiblePositionManager(_dex);
+        nfp = INonfungiblePositionManager(_nfp);
+        dex = IUniswapV3Pool(_dex);
         adminPercent = 100;
         beneficiary = msg.sender;
-        rewardDuration = 7 days;
         _mintNewPosition(5000 ether, 5000 ether, 0, type(uint128).max);
+    }
+
+    // DOESN'T WORK yet again cause of unstaking
+    // Update admin fees based on any changes that occurred between last deposit and withdrawal.
+    // This is to be used on functions that have balance changes unrelated to rewards within them such as deposit/withdraw.
+    modifier update {
+        uint256 balance = wnxm.balanceOf(address(this));
+        uint256 staked = _stakedNxm();
+
+        // This only happens without another update if rewards have entered the contract.
+        if (balance > lastBalance && lastStaked <= staked) adminFees += (balance - lastBalance) * adminPercent / DIVISOR;
+        _;
+        
+        lastBalance = wnxm.balanceOf(address(this));
+        lastStaked = _stakedNxm();
     }
 
     modifier notPaused {
@@ -111,6 +129,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
       internal 
       override
       notPaused
+      update
     {
         require((_totalPending() + assets) <= wNxm.balanceOf(address(this)), "Not enough NXM available for withdrawal.");
 
@@ -124,18 +143,31 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
         );
 
         emit WithdrawRequested(msg.sender, shares, assets, block.timestamp, block.timestamp + withdrawDelay);
-       }
+    }
+
+    /// Need to override here so that we can add the update modifier.
+    function _deposit(        
+        address caller,
+        address receiver,
+        uint256 assets,
+        uint256 shares) 
+      internal 
+      override
+      update
+    {
+        super._deposit(caller, receiver, assets, shares);
+    }
 
     /**
      * @notice Finalize a withdraw request after the withdraw delay ends.
      * @dev Only one withdraw request can be active at a time for a user so this needs no params.
      */
-    function withdrawFinalize() external notPaused {
+    function withdrawFinalize() external notPaused update {
         address user = msg.sender;
         WithdrawalRequest memory withdrawal = withdrawals[user];
 
         uint256 shares = uint256(withdrawal.shares);
-        uint256 currentAssetAmount = _convertToAssets(shares);
+        uint256 currentAssetAmount = _convertToAssets(shares, Math.Rounding.Down);
         uint256 assets = uint256(withdrawal.assets) > currentAssetAmount ? currentAssetAmount : uint256(withdrawal.assets);
         uint256 requestTime = uint256(withdrawal.requestTime);
 
@@ -154,26 +186,20 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @notice Collect all rewards from Nexus staking pool and from dex.
      * @dev These rewards stream to users over the reward duration. Can be called by anyone once the duration is over.
      */
-    function getRewardNxm() external  {
-        // only allow to claim rewards after 1 week
-        require((block.timestamp - lastRewardTimestamp) > rewardDuration, "reward interval not reached");
-        uint256 prevAum = totalAssets();
-        uint256 rewards;
+    function getRewardNxm() external update returns (uint256 rewards) {
         for (uint256 i; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
             rewards += _withdrawFromPool(tokenIdToPool[tokenId], tokenId, false, true, tokenIdToTranches[tokenId]);
         }
 
-        // Rewards to be given to users (full reward - admin reward).
-        uint256 finalReward = _feeRewardsNxm(rewards);
-
         // Collect fees from the dex. Compounds back into stNXM value.
-        collectDexFees();
+        rewards += collectDexFees();
 
-        // update last reward
-        lastReward = finalReward;
-        if (finalReward > 0) emit NxmReward(rewards, block.timestamp, prevAum);
-        lastRewardTimestamp = block.timestamp;
+        // Update for any changes since last interaction
+        // We don't run the modifier because changes within the function should add to admin fees.
+        updateFees();
+
+        emit NxmReward(rewards, block.timestamp);
     }
 
     /**
@@ -202,20 +228,21 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      */
     function collectDexFees()
         public
+        returns (uint256 rewards)
     {
         for (uint256 i = 0; i < dexTokenIds.length; i++) {
-            INonfungiblePositionManager position = dex.positions(dexTokenIds[i]);
-
             // amount0 is wNXM
             // amount1 is stNXM
-            (uint256 amount0, uint256 amount1) = position.collect(
+            (uint256 amount0, uint256 amount1) = nfp.collect(INonfungiblePositionManager.CollectParams(
+                dexTokenIds[i],
                 address(this),          // recipient of the fees
-                position.tickLower,      // lower tick of the position
-                position.tickUpper       // upper tick of the position
-            );
+                0,                      // maximum amount of amount0
+                0                       // maximum amount of amount1
+            ));
 
             // Burn the stNXM fees.
             if (amount1 > 0) _burn(address(this), amount1);
+            rewards += amount0;
         }
     }
 
@@ -224,10 +251,32 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @param _tokenId Staking NFT token id.
      * @param _trancheIds Tranches to unstake from.
      */
-    function unstakeNxm(uint256 _tokenId, uint256[] memory _trancheIds) external {
+    function unstakeNxm(uint256 _tokenId, uint256[] memory _trancheIds) external update {
         uint256 withdrawn = _withdrawFromPool(tokenIdToPool[_tokenId], _tokenId, true, false, _trancheIds);
         nxm.approve(address(wNxm), withdrawn);
         IWNXM(address(wNxm)).wrap(withdrawn);
+    }
+
+    // Needed in addition to the modifier for situations where actions happening within the function
+    // should *all* count toward admin fees. The modifier wants to exclude deposits affecting fees.
+    function updateFees() public {
+        uint256 balance = wnxm.balanceOf(address(this));
+        uint256 staked = _stakedNxm();
+
+        // This only happens without another update if rewards have entered the contract.
+        if (balance > lastBalance && lastStake <= staked) adminFees += (balance - lastBalance) * adminPercent / DIVISOR;
+        
+        lastBalance = wnxm.balanceOf(address(this));
+        lastStake = _stakedNxm();
+    }
+
+    /**
+     * @notice Withdraw all fees that have accrued to the admin.
+     * @dev Callable by anyone.
+     */
+    function withdrawAdminFees() external update {
+        wNxm.safeTransfer(beneficiary, adminFees);
+        adminFees = 0;
     }
 
 /******************************************************************************************************************************************/
@@ -244,6 +293,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     function stakeNxm(uint256 _amount, address _poolAddress, uint256 _trancheId, uint256 _requestTokenId)
         external
         onlyOwner
+        update
     {
         _stakeNxm(_amount, _poolAddress, _trancheId, _requestTokenId);
     }
@@ -259,6 +309,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     function extendDeposit(uint256 _tokenId, uint256 _initialTrancheId, uint256 _newTrancheId, uint256 _topUpAmount)
         external
         onlyOwner
+        update
     {
         IStakingPool(tokenIdToPool[_tokenId]).extendDeposit(_tokenId, _initialTrancheId, _newTrancheId, _topUpAmount);
     }
@@ -267,7 +318,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @notice Deposit wNXM to Morpho to be lent out with stNXM as collateral.
      * @param _assetAmount Amount of wNXM to be lent out.
      */
-    function morphoDeposit(uint256 _assetAmount) external onlyOwner {
+    function morphoDeposit(uint256 _assetAmount) external onlyOwner update {
         morpho.deposit(_assetAmount, address(this));
     }
 
@@ -275,7 +326,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @notice Redeem Morpho assets to get wNXM back into the pool.
      * @param _shareAmount Amount of Morpho shares to redeem for wNXM.
      */
-    function morphoRedeem(uint256 _shareAmount) external onlyOwner {
+    function morphoRedeem(uint256 _shareAmount) external onlyOwner update {
         morpho.redeem(_shareAmount, address(this));
     }
 
@@ -287,6 +338,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     function decreaseLiquidityCurrentRange(uint256 tokenId, uint128 liquidity)
         external
         onlyOwner
+        update
     {
         INonfungiblePositionManager.DecreaseLiquidityParams memory params =
         INonfungiblePositionManager.DecreaseLiquidityParams({
@@ -297,13 +349,14 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
             deadline: block.timestamp
         });
 
-        (uint256 amount0, uint256 amount1) = dex.decreaseLiquidity(params);
+        (uint256 amount0, uint256 amount1) = nfp.decreaseLiquidity(params);
 
         // Burn stNXM that was removed.
         if (amount1 > 0) _burn(address(this), amount1);
 
         // If we're removing all liquidity, remove from tokenIds.
-        if (dex.positions(tokenId).amount0 == 0) {
+        (,,,,,,,uint128 tokenLiq,,,,) = dex.positions(tokenId);
+        if (tokenLiq == 0) {
             for (uint256 i = 0; i < dexTokenIds.length; i++) {
                 if (tokenId == dexTokenIds[i]) {
                     dexTokenIds[i] = dexTokenIds[dexTokenIds.length - 1];
@@ -322,11 +375,12 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @dev This is important to overwrite because it must include wNXM currently being held,
      *       NXM currently being staked, wNXM being lent out, wNXM being used as liquidity,
      *       and account for tokens currently being withdrawn and rewards being distributed.
+     *       This also does not always account for exact admin fees, so be wary of that.
      */
     function totalAssets() public view override returns (uint256) {
         // Add staked NXM, NXM in the contract, NXM in the dex and Morpho, subtract the recent chunk of reward from Nexus (because it's wrongfully included in balance),
         // add back in the amount that has been distributed so far, subtract the total amount that's waiting to be withdrawn.
-        return _stakedNxm() + _unstakedNxm() - lastReward + _distributedReward() - _totalPending();
+        return _stakedNxm() + _unstakedNxm() - _totalPending() - adminFees;
     }
 
     /**
@@ -343,13 +397,28 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @notice Full amount of NXM that's been staked.
      */
     function _stakedNxm() internal view returns (uint256 assets) {
-        uint256 stakedDeposit;
-        INFTDescriptor nftDescriptor = INFTDescriptor(stakingNFT.nftDescriptor());
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 token = tokenIds[i];
+            uint256[] memory trancheIds = tokenIdToTranches[token];
+            address pool = tokenIdToPool[token];
 
-        for (uint256 i; i < tokenIds.length; i++) {
-            // Need to check but I believe this may cause problems with expired stakes
-            (, uint256 totalStaked,) = nftDescriptor.getActiveDeposits(tokenIds[i], tokenIdToPool[tokenIds[i]]);
-            assets += totalStaked;
+            uint activeStake = IStakingPool(pool).getActiveStake();
+            uint stakeSharesSupply = IStakingPool(pool).getStakeSharesSupply();
+
+            // Used to determine if we need to check an expired tranche.
+            currentTranche = block.timestamp / 91 days;
+            for (uint256 j = 0; j < trancheIds.length; j++) {
+                uint256 tranche = trancheIds[i];
+                (, , uint256 stakeShares, ) = IStakingPool(pool).getDeposit(token, tranche);
+
+                // Tranche has been expired so we need to do different calculations here.
+                if (tranche < currentTranche) {
+                    (, uint256 amountAtExpiry, uint256 sharesAtExpiry) = IStakingPool.getExpiredTranche(tranche);
+                    assets += (amountAtExpiry * stakeShares) / sharesAtExpiry;
+                } else {
+                    assets += (activeStake * stakeShares) / stakeSharesSupply;
+                }
+            }
         }
     }
 
@@ -370,16 +439,12 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @notice Find balances of both wNXM and stNXM within the Uniswap pool this contract uses.
      */
     function _dexBalances() internal view returns (uint256 amount0, uint256 amount1) {
-        // All dex positions will be in the same pool, so total liquidity is the same.
-        uint256 totalLiquidity = dex.liquidity();
-        uint256 totalAmount0 = wNxm.balanceOf(dex);
-        uint256 totalAmount1 = balanceOf(dex);
-
-        uint256 posLiquidity;
-        for (uint256 i = 0; i < dexTokenIds.length; i++) posLiquidity += uint256(dex.positions(dexTokenIds[i]).liquidity);
-        
-        amount0 += posLiquidity * totalAmount0 / totalLiquidity;
-        amount1 += posLiquidity * totalAmount1 / totalLiquidity;
+        (uint160 sqrtRatio,,,,,,) = dex.slot0();
+        for (uint256 i = 0; i < dexTokenIds.length; i++) {
+            (uint256 posAmount0, uint256 posAmount1) = PositionValue.total(dex, dexTokenIds[i], sqrtRatio);
+            amount0 += posAmount0;
+            amount1 += posAmount1;
+        }
     }
 
     /**
@@ -389,35 +454,13 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      *      early to avoid slashing, and they cannot initiate a withdrawal but continue to gain rewards.
      */
     function _totalPending() internal view returns (uint256) {
-        uint256 currentPending = _convertToAssets(balanceOf(address(this)), Math.Rounding.Floor);
+        uint256 currentPending = _convertToAssets(balanceOf(address(this)), Math.Rounding.Down);
         return savedPending < currentPending ? savedPending : currentPending;
-    }
-
-    /**
-     * @notice Calculate the amount of reward that has been distributed throughout this reward period.
-     * @return reward Amount of reward currently calculated into arNxm value.
-     */
-    function _distributedReward() internal view returns (uint256 reward) {
-        uint256 duration = rewardDuration;
-        uint256 timeElapsed = block.timestamp - lastRewardTimestamp;
-        if (timeElapsed == 0) {
-            return 0;
-        }
-
-        // Full reward is added to the balance if it's been more than the disbursement duration.
-        if (timeElapsed >= duration) {
-            reward = lastReward;
-            // Otherwise, disburse amounts linearly over duration.
-        } else {
-            // 1e18 just for a buffer.
-            uint256 portion = (duration * 1e18) / timeElapsed;
-            reward = (lastReward * 1e18) / portion;
-        }
     }
 
     /// stNXM includes the inability to withdraw if the amount is over what's in the contract balance.
     function maxWithdraw(address owner) public view override(ERC4626) returns (uint256) {
-        uint256 ownerMax = _convertToAssets(balanceOf(owner), Math.Rounding.Floor);
+        uint256 ownerMax = _convertToAssets(balanceOf(owner), Math.Rounding.Down);
         uint256 assetBalance = wNxm.balanceOf(address(this));
         return assetBalance > ownerMax ? ownerMax : assetBalance;
     }
@@ -475,22 +518,6 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     }
 
     /**
-     * @notice Find and distribute administrator rewards.
-     * @param reward Full reward given from this week.
-     * @return userReward Reward amount given to users (full reward - admin reward).
-     *
-     */
-    function _feeRewardsNxm(uint256 reward) internal returns (uint256 userReward) {
-        // Find both rewards before minting any.
-        uint256 adminReward = _convertToShares((reward * adminPercent) / DENOMINATOR);
-
-        // Mint to beneficary then this address (to then transfer to rewardManager).
-        if (adminReward > 0) _mint(beneficiary, adminReward);
-
-        userReward = reward - adminReward;
-    }
-
-    /**
      * @notice Used to mint a new Uni V3 position using funds from the stNXM pool. Only used once.
      * @dev When minting, wNXM is added to the pool from here but stNXM is minted directly to the pool.
      *      Infinite amount of stNXM can be minted, only wNXM held by the contract can be added.
@@ -503,7 +530,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
         internal
     {
         // make a better initializer
-        require(lastRewardTimestamp == 0, "May only be minted on initialization.");
+        require(lastTotal == 0, "May only be minted on initialization.");
 
         wNxm.approve(address(dex), amount0ToAdd);
         _mint(address(this), amount1ToAdd);
@@ -524,7 +551,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
             deadline: block.timestamp
         });
 
-        (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) = dex.mint(params);
+        (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) = nfp.mint(params);
 
         dexTokenIds.push(tokenId);
 
@@ -579,16 +606,6 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     function changeAdminPercent(uint256 _adminPercent) external onlyOwner {
         require(_adminPercent <= 500, "Cannot give admin more than 50% of rewards.");
         adminPercent = _adminPercent;
-    }
-
-    /**
-     * @dev Owner may change the amount of time it takes to distribute rewards from Nexus.
-     * @param _rewardDuration The amount of time it takes to fully distribute rewards.
-     *
-     */
-    function changeRewardDuration(uint256 _rewardDuration) external onlyOwner {
-        require(_rewardDuration <= 30 days, "Reward duration cannot be more than 30 days.");
-        rewardDuration = _rewardDuration;
     }
 
     /**
