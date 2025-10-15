@@ -1,6 +1,7 @@
 pragma solidity ^0.8.26;
 
 import '../interfaces/INonfungiblePositionManager.sol';
+import '../libraries/v3-core/PositionValue.sol';
 
 
 contract stOracle {
@@ -9,12 +10,12 @@ contract stOracle {
     // Way more than APY will ever be, but less
     // than needed for a useful price manipulation.
     uint256 constant saneApy = 5 * 1e17;
-    uint256 public constant startTime;
-    address public dex;
+    uint256 public immutable startTime;
+    IUniswapV3Pool public dex;
 
     constructor(address _dex) {
         startTime = block.timestamp;
-        dex = INonfungiblePositionManager(_dex);
+        dex = IUniswapV3Pool(_dex);
     }
 
     // Find the price of stNXM in wNXM
@@ -22,7 +23,7 @@ contract stOracle {
     // stNxm price on the dex will be very difficult to be too high because
     // minting is always available.
     function price() external view returns (uint256 dexPrice) {
-        dexPrice = dex.getPrice(1e18);
+        (dexPrice,,,) = dex.observations(19);
         // Check if it's over a 
         require(sanePrice(dexPrice));
 
