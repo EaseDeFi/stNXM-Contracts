@@ -86,7 +86,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
         dex = IUniswapV3Pool(_dex);
         adminPercent = 100;
         beneficiary = msg.sender;
-        _mintNewPosition(5000 ether, 5000 ether, 0, type(uint128).max);
+        _mintNewPosition(5000 ether, 5000 ether, 0, type(int24).max);
     }
 
     // Update admin fees based on any changes that occurred between last deposit and withdrawal.
@@ -131,6 +131,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
       notPaused
       update
     {
+        owner; caller; receiver;
         require((_totalPending() + assets) <= wNxm.balanceOf(address(this)), "Not enough NXM available for withdrawal.");
 
         savedPending = savedPending + assets;
@@ -167,7 +168,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
         WithdrawalRequest memory withdrawal = withdrawals[user];
 
         uint256 shares = uint256(withdrawal.shares);
-        uint256 currentAssetAmount = _convertToAssets(shares, Math.Rounding.Down);
+        uint256 currentAssetAmount = _convertToAssets(shares, Math.Rounding.Floor);
         uint256 assets = uint256(withdrawal.assets) > currentAssetAmount ? currentAssetAmount : uint256(withdrawal.assets);
         uint256 requestTime = uint256(withdrawal.requestTime);
 
@@ -177,7 +178,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
         _burn(address(this), shares);
         wNxm.safeTransfer(user, assets);
         delete withdrawals[user];
-        savedPending = savedPending - assets;
+        savedPending = savedPending - uint256(withdrawal.assets);
 
         emit Withdrawal(user, assets, shares, block.timestamp);
     }
@@ -218,7 +219,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
             delete tokenIdToTranches[id];
 
             for (uint256 j = 0; j < futureTranches.length; j++) {
-                uint256 trancheDeposit = IStakingPool(_stakingPool).getDeposit(id, futureTranches[j]);
+                (,,uint256 trancheDeposit,) = IStakingPool(_stakingPool).getDeposit(id, futureTranches[j]);
                 if (trancheDeposit > 0) tokenIdToTranches[id].push(futureTranches[j]);
             }
         }
@@ -338,13 +339,13 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
             deadline: block.timestamp
         });
 
-        (uint256 amount0, uint256 amount1) = nfp.decreaseLiquidity(params);
+        (, uint256 amount1) = nfp.decreaseLiquidity(params);
 
         // Burn stNXM that was removed.
         if (amount1 > 0) _burn(address(this), amount1);
 
         // If we're removing all liquidity, remove from tokenIds.
-        (,,,,,,,uint128 tokenLiq,,,,) = dex.positions(tokenId);
+        (,,,,,,,uint128 tokenLiq,,,,) = nfp.positions(tokenId);
         if (tokenLiq == 0) {
             for (uint256 i = 0; i < dexTokenIds.length; i++) {
                 if (tokenId == dexTokenIds[i]) {
@@ -402,7 +403,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
 
                 // Tranche has been expired so we need to do different calculations here.
                 if (tranche < currentTranche) {
-                    (, uint256 amountAtExpiry, uint256 sharesAtExpiry) = IStakingPool.getExpiredTranche(tranche);
+                    (, uint256 amountAtExpiry, uint256 sharesAtExpiry) = IStakingPool(pool).getExpiredTranche(tranche);
                     assets += (amountAtExpiry * stakeShares) / sharesAtExpiry;
                 } else {
                     assets += (activeStake * stakeShares) / stakeSharesSupply;
@@ -430,7 +431,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     function _dexBalances() internal view returns (uint256 amount0, uint256 amount1) {
         (uint160 sqrtRatio,,,,,,) = dex.slot0();
         for (uint256 i = 0; i < dexTokenIds.length; i++) {
-            (uint256 posAmount0, uint256 posAmount1) = PositionValue.total(dex, dexTokenIds[i], sqrtRatio);
+            (uint256 posAmount0, uint256 posAmount1) = PositionValue.total(nfp, dexTokenIds[i], sqrtRatio);
             amount0 += posAmount0;
             amount1 += posAmount1;
         }
@@ -443,20 +444,21 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      *      early to avoid slashing, and they cannot initiate a withdrawal but continue to gain rewards.
      */
     function _totalPending() internal view returns (uint256) {
-        uint256 currentPending = _convertToAssets(balanceOf(address(this)), Math.Rounding.Down);
-        return savedPending < currentPending ? savedPending : currentPending;
+        return savedPending;
+        //uint256 currentPending = _convertToAssets(balanceOf(address(this)), Math.Rounding.Floor);
+        //return savedPending < currentPending ? savedPending : currentPending;
     }
 
     /// stNXM includes the inability to withdraw if the amount is over what's in the contract balance.
     function maxWithdraw(address owner) public view override(ERC4626) returns (uint256) {
-        uint256 ownerMax = _convertToAssets(balanceOf(owner), Math.Rounding.Down);
+        uint256 ownerMax = _convertToAssets(balanceOf(owner), Math.Rounding.Floor);
         uint256 assetBalance = wNxm.balanceOf(address(this));
         return assetBalance > ownerMax ? ownerMax : assetBalance;
     }
 
     /// stNXM includes the inability to redeem if the amount is over what's in the contract balance.
     function maxRedeem(address owner) public view override(ERC4626) returns (uint256) {
-        uint256 assetBalance = _convertToShares(wNxm.balanceOf(address(this)));
+        uint256 assetBalance = _convertToShares(wNxm.balanceOf(address(this)), Math.Rounding.Floor);
         uint256 ownerBalance = balanceOf(owner);
         return assetBalance > ownerBalance ? ownerBalance : assetBalance;
     }
@@ -515,7 +517,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @param _tickLower Low tick of the new position.
      * @param _tickUpper High tick of the new position.
      */
-    function _mintNewPosition(uint256 amount0ToAdd, uint256 amount1ToAdd, uint128 _tickLower, uint128 _tickUpper)
+    function _mintNewPosition(uint256 amount0ToAdd, uint256 amount1ToAdd, int24 _tickLower, int24 _tickUpper)
         internal
     {
         // make a better initializer
@@ -540,7 +542,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
             deadline: block.timestamp
         });
 
-        (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) = nfp.mint(params);
+        (uint256 tokenId, , , uint256 amount1) = nfp.mint(params);
 
         dexTokenIds.push(tokenId);
 
