@@ -25,7 +25,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     event Withdrawal(address indexed user, uint256 asset, uint256 share, uint256 timestamp);
     event NxmReward(uint256 reward, uint256 timestamp);
 
-    uint256 private constant DENOMINATOR = 1000;
+    uint256 private constant DIVISOR = 1000;
 
     // Nxm tokens.
     IERC20 public wNxm;
@@ -53,7 +53,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     // The amount of the last reward.
     uint256 public lastTotal;
     // The amount of stake on last update. Needed to make sure a balance change isn't an unstake.
-    uint256 public lastStake;
+    uint256 public lastStaked;
+    uint256 public lastBalance;
 
     // Ids for Uniswap NFTs
     uint256[] public dexTokenIds;
@@ -88,18 +89,17 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
         _mintNewPosition(5000 ether, 5000 ether, 0, type(uint128).max);
     }
 
-    // DOESN'T WORK yet again cause of unstaking
     // Update admin fees based on any changes that occurred between last deposit and withdrawal.
     // This is to be used on functions that have balance changes unrelated to rewards within them such as deposit/withdraw.
     modifier update {
-        uint256 balance = wnxm.balanceOf(address(this));
+        uint256 balance = wNxm.balanceOf(address(this));
         uint256 staked = _stakedNxm();
 
         // This only happens without another update if rewards have entered the contract.
         if (balance > lastBalance && lastStaked <= staked) adminFees += (balance - lastBalance) * adminPercent / DIVISOR;
         _;
         
-        lastBalance = wnxm.balanceOf(address(this));
+        lastBalance = wNxm.balanceOf(address(this));
         lastStaked = _stakedNxm();
     }
 
@@ -186,7 +186,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @notice Collect all rewards from Nexus staking pool and from dex.
      * @dev These rewards stream to users over the reward duration. Can be called by anyone once the duration is over.
      */
-    function getRewardNxm() external update returns (uint256 rewards) {
+    function getRewards() external update returns (uint256 rewards) {
         for (uint256 i; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
             rewards += _withdrawFromPool(tokenIdToPool[tokenId], tokenId, false, true, tokenIdToTranches[tokenId]);
@@ -197,7 +197,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
 
         // Update for any changes since last interaction
         // We don't run the modifier because changes within the function should add to admin fees.
-        updateFees();
+        adminFees += rewards * adminPercent / DIVISOR;
 
         emit NxmReward(rewards, block.timestamp);
     }
@@ -207,6 +207,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      */
     function resetTranches()
       public
+      update
     {
         // Get IDs for the next 2 years of tranches
         uint256[] memory futureTranches = _getFutureTranches();
@@ -225,6 +226,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
 
     /**
      * @notice Collect fees from the Uni V3 pool
+     * @dev Does not have update because it's called within getRewards.
      */
     function collectDexFees()
         public
@@ -255,19 +257,6 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
         uint256 withdrawn = _withdrawFromPool(tokenIdToPool[_tokenId], _tokenId, true, false, _trancheIds);
         nxm.approve(address(wNxm), withdrawn);
         IWNXM(address(wNxm)).wrap(withdrawn);
-    }
-
-    // Needed in addition to the modifier for situations where actions happening within the function
-    // should *all* count toward admin fees. The modifier wants to exclude deposits affecting fees.
-    function updateFees() public {
-        uint256 balance = wnxm.balanceOf(address(this));
-        uint256 staked = _stakedNxm();
-
-        // This only happens without another update if rewards have entered the contract.
-        if (balance > lastBalance && lastStake <= staked) adminFees += (balance - lastBalance) * adminPercent / DIVISOR;
-        
-        lastBalance = wnxm.balanceOf(address(this));
-        lastStake = _stakedNxm();
     }
 
     /**
@@ -406,7 +395,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
             uint stakeSharesSupply = IStakingPool(pool).getStakeSharesSupply();
 
             // Used to determine if we need to check an expired tranche.
-            currentTranche = block.timestamp / 91 days;
+            uint256 currentTranche = block.timestamp / 91 days;
             for (uint256 j = 0; j < trancheIds.length; j++) {
                 uint256 tranche = trancheIds[i];
                 (, , uint256 stakeShares, ) = IStakingPool(pool).getDeposit(token, tranche);
