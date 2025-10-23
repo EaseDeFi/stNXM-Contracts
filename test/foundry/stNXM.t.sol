@@ -11,6 +11,8 @@ import "../../contracts/interfaces/INexusMutual.sol";
 import "../../contracts/interfaces/IarNXMVault.sol";
 import "../../contracts/interfaces/INonfungiblePositionManager.sol";
 import "../../contracts/interfaces/IMorpho.sol";
+import "../../contracts/interfaces/IMorphoFactory.sol";
+import "../../contracts/interfaces/IUniswapFactory.sol";
 import "../../contracts/libraries/v3-core/IUniswapV3Pool.sol";
 
 // import new contracts
@@ -24,22 +26,23 @@ contract stNxmTest is Test {
     uint256 currentFork;
 
     IERC20 wNxm = IERC20(0x0d438F3b5175Bebc262bF23753C1E53d03432bDE);
+    IERC20 arNxm = IERC20(0x1337DEF1FC06783D4b03CB8C1Bf3EBf7D0593FC4);
     StNXM stNxm;
 
     IStakingNFT stakingNFT = IStakingNFT(0xcafea508a477D94c502c253A58239fb8F948e97f);
     INonfungiblePositionManager nfp = INonfungiblePositionManager(0xC36442b4a4522E871399CD717aBDD847Ab11FE88);
+    IMorphoFactory morphoFactory = IMorphoFactory(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
+
     IMorpho morpho;
     TokenSwap stNxmSwap;
     StOracle stNxmOracle;
     IUniswapV3Pool dex;
 
-    address[] riskPools = [0x5a44002a5ce1c2501759387895a3b4818c3f50b3, 0x5a44002a5ce1c2501759387895a3b4818c3f50b3, 0x34d250e9fa70748c8af41470323b4ea396f76c16];
+    address[] riskPools = [0x5A44002A5CE1c2501759387895A3b4818C3F50b3, 0x5A44002A5CE1c2501759387895A3b4818C3F50b3, 0x34D250E9fA70748C8af41470323B4Ea396f76c16];
     uint256[] tokenIds = [214, 215, 242];
 
     address multisig = 0x1f28eD9D4792a567DaD779235c2b766Ab84D8E33;
     address wnxmWhale = 0xF977814e90dA44bFA03b6295A0616a897441aceC;
-    address arNXM = 0x1337DEF1FC06783D4b03CB8C1Bf3EBf7D0593FC4;
-    address morphoFactory = 0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb;
     address uniswapFactory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     address oracle = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     address nxmMaster = 0x01BFd82675DBCc7762C84019cA518e701C0cD07e;
@@ -50,10 +53,10 @@ contract stNxmTest is Test {
         // Create new stNxm contract here
         stNxm = new StNXM();
         // 100k ether is mint amount and will be equal to arNXM total assets.
-        stNxm.initialize(nfp, wNxm, nxm, nxmMaster, 100000 ether);
+        stNxm.initialize(address(nfp), address(wNxm), nxm, nxmMaster, 100000 ether);
 
         // Deploy and fill swap here.
-        stNxmSwap = new TokenSwap();
+        stNxmSwap = new TokenSwap(address(stNxm), address(arNxm));
         stNxm.transfer(address(stNxmSwap), 100000 ether);
 
         // Create Morpho pool here
@@ -70,19 +73,19 @@ contract stNxmTest is Test {
         });*/
 
         // And create uniswap pool with a 1:1 exchange
-        dex = IUniswapV3Pool(uniswapFactory.createPool(address(wNxm), address(stNxm), 79228162514264337593543950336));
+        dex = IUniswapV3Pool(IUniswapFactory(uniswapFactory).createPool(address(wNxm), address(stNxm), 50));
 
         // Finalize intiialization with dex info.
         stNxm.initializeTwo(address(dex), address(morpho), 5000 ether);
 
         // Create oracle here
-        stNxmOracle = new StOracle(address(dex));
+        stNxmOracle = new StOracle(address(dex), address(wNxm), address(stNxm));
 
         // Finalize NFT transfers
-        vm.startPrank(arNXM);
-        stakingNFT.transfer(address(stNxm), 214);
-        stakingNFT.transfer(address(stNxm), 215);
-        stakingNFT.transfer(address(stNxm), 242);
+        vm.startPrank(address(arNxm));
+        stakingNFT.transferFrom(address(this), address(stNxm), 214);
+        stakingNFT.transferFrom(address(this), address(stNxm), 215);
+        stakingNFT.transferFrom(address(this), address(stNxm), 242);
         // Transfer funds here too
         vm.stopPrank();
 
@@ -99,20 +102,20 @@ contract stNxmTest is Test {
         vm.startPrank(user);
         // approve wnxm
         wNxm.approve(address(stNxm), depositAmt);
-        stNxm.deposit(depositAmt, address(0), false);
+        stNxm.deposit(depositAmt, user);
         vm.stopPrank();
     }
 
     function withdrawWNXM(uint256 amount, address user) public {
         vm.startPrank(user);
         stNxm.approve(address(stNxm), amount);
-        stNxm.withdraw(amount); 
+        stNxm.withdraw(amount, user, user); 
         vm.stopPrank();
     }
 
     function finalizeWithdrawal(address user) public {
         vm.startPrank(user);
-        stNxm.withdrawFinalize();
+        stNxm.withdrawFinalize(user);
         vm.stopPrank();
     }
 
@@ -145,7 +148,7 @@ contract stNxmTest is Test {
     }
 
     function testAum() public {
-        uint256 vaultNXMBalance = wNxm.balanceOf(address(stNxm));
+        //uint256 vaultNXMBalance = wNxm.balanceOf(address(stNxm));
         uint256 aum = stNxm.totalAssets();
         console.log(aum);
 
@@ -179,12 +182,12 @@ contract stNxmTest is Test {
     function testWithdrawWithoutFee() public {
         depositWNXM(10e18, wnxmWhale);
         uint256 whaleStNxmBal = stNxm.balanceOf(wnxmWhale);
-        uint256 totalPendingBefore = stNxm.totalPending();
+        uint256 totalPendingBefore = stNxm.pending();
         uint256 vaultsStNxmBalBefore = stNxm.balanceOf(address(stNxm));
 
         withdrawWNXM(whaleStNxmBal, wnxmWhale);
         uint256 vaultsStNxmBalAfter = stNxm.balanceOf(address(stNxm));
-        uint256 totalPendingAfter = stNxm.totalPending();
+        uint256 totalPendingAfter = stNxm.pending();
 
         require((vaultsStNxmBalBefore - vaultsStNxmBalAfter) == whaleStNxmBal, "arnxm transfer to vault error");
 
@@ -234,13 +237,13 @@ contract stNxmTest is Test {
         (uint256 stakeSharesBefore, uint256 rewardSharesBefore) = stakingPool.getTranche(trancheId);
 
         uint256 vaultNXMBalBefore = wNxm.balanceOf(address(stNxm));
-        uint256 aumBefore = stNxm.aum();
+        uint256 aumBefore = stNxm.totalAssets();
 
         // deposit to staking pool
         stakeNxm(amountToStake, riskPools[0], trancheId, tokenIds[0]);
 
         uint256 vaultNXMBalAfter = wNxm.balanceOf(address(stNxm));
-        uint256 aumAfter = stNxm.aum();
+        uint256 aumAfter = stNxm.totalAssets();
 
         // aum increases by 1 uinits so >= is used instead of ==
         require(aumAfter == aumBefore, "aum should not change");
@@ -350,7 +353,7 @@ contract stNxmTest is Test {
         uint256 vaultNXMBalBefore = wNxm.balanceOf(address(stNxm));
         vm.warp(block.timestamp + 92 days);
         vm.startPrank(multisig);
-        stNxm.withdrawNxm(riskPools[0], tokenIds[0], trancheIds);
+        stNxm.unstakeNxm(tokenIds[0], trancheIds);
         vm.stopPrank();
         uint256 vaultNXMBalAfter = wNxm.balanceOf(address(stNxm));
 
@@ -389,9 +392,8 @@ contract stNxmTest is Test {
     function testWithdrawFromUni() public { 
         uint256 balBefore = wNxm.balanceOf(address(stNxm));
         uint256 tsBefore = stNxm.totalSupply();
-        uint256[] memory dexTokenIds = stNxm.dexTokenIds();
-        uint256 liquidity = nfp.liquidity();
-        stNxm.decreaseLiquidity(dexTokenIds[0], 1);
+        uint256 dexTokenId = stNxm.dexTokenIds(0);
+        stNxm.decreaseLiquidity(dexTokenId, 1);
         // Check increase here
         uint256 balAfter = wNxm.balanceOf(address(stNxm));
         uint256 tsAfter = stNxm.totalSupply();
@@ -401,7 +403,7 @@ contract stNxmTest is Test {
 
     function testMorpho() public { 
         vm.startPrank(multisig);
-        uint256 nxmBal = wNxm.balanceOf(address(stNxm));
+        //uint256 nxmBal = wNxm.balanceOf(address(stNxm));
         uint256 morphoBal = morpho.balanceOf(address(stNxm));
         stNxm.morphoDeposit(1000 ether);
         require(morpho.balanceOf(address(stNxm)) > morphoBal);
@@ -419,11 +421,10 @@ contract stNxmTest is Test {
     // 3. Confirm dex is correct
 
     function testResetTranches() public {
-        uint256[] memory tranches = stNxm.tokenIdToTranches(1);
-        stakeNxm(1, riskPools[0], 224, tokenIds[0]);
+        stakeNxm(1, riskPools[0], 230, tokenIds[0]);
         stNxm.resetTranches();
-        uint256[] memory newTranches = stNxm.tokenIdToTranches(1);
-        require(newTranches[1] == 224, "Tranche not reset correctly.");
+        uint256 newTranche = stNxm.tokenIdToTranches(214, 0);
+        require(newTranche == 230, "Tranche not reset correctly.");
     }
 
     function testWithdrawAdminFees() public {
@@ -456,8 +457,10 @@ contract stNxmTest is Test {
         withdrawWNXM(1 ether, wnxmWhale);
         vm.warp(block.timestamp + 2 days + 1 hours);
         stNxm.togglePause();
-        vm.expectRevert(withdrawWNXM(1 ether, wnxmWhale));
-        vm.expectRevert(finalizeWithdrawal(wnxmWhale));
+        vm.expectRevert();
+        withdrawWNXM(1 ether, wnxmWhale);
+        vm.expectRevert();
+        finalizeWithdrawal(wnxmWhale);
     }
 
     function testTokenSwap() public {

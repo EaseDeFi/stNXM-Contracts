@@ -13,7 +13,7 @@ contract StOracle {
     // than needed for a useful price manipulation.
     uint256 constant saneApy = 5 * 1e17;
     // 30 minute twap
-    uint256 constant twapPeriod = 1800;
+    uint32 constant TWAP_PERIOD = 1800;
     uint256 public immutable startTime;
 
     constructor(address _dex, address _wNxm, address _stNxm) {
@@ -28,11 +28,11 @@ contract StOracle {
     // stNxm price on the dex will be very difficult to be too high because
     // minting is always available.
     function price() external view returns (uint256 twap) {
-        (int24 meanTick, ) = OracleLibrary.consult(address(dex), twapPeriod);
+        (int24 meanTick, ) = OracleLibrary.consult(address(dex), TWAP_PERIOD);
         twap = OracleLibrary.getQuoteAtTick(meanTick, 1 ether, stNxm, wNxm);
 
         // Make sure price isn't too high
-        require(sanePrice(twap));
+        require(sanePrice(twap), "Price has been manipulated too high.");
 
         // Scale to meet Morpho standards
         twap = twap * 1e36;

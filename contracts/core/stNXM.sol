@@ -320,7 +320,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @notice Deposit wNXM to Morpho to be lent out with stNXM as collateral.
      * @param _assetAmount Amount of wNXM to be lent out.
      */
-    function morphoDeposit(uint256 _assetAmount) external onlyOwner update returns (uint256) {
+    function morphoDeposit(uint256 _assetAmount) external onlyOwner update {
         wNxm.approve(address(morpho), _assetAmount);
         morpho.deposit(_assetAmount, address(this));
     }
