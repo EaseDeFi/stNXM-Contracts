@@ -113,4 +113,13 @@ interface IUniswapV3PoolState {
             uint160 secondsPerLiquidityCumulativeX128,
             bool initialized
         );
+
+    function observe(uint32[] memory secondsAgo)
+      external
+      view
+    returns (
+        int56[] memory tickCumulatives,
+        uint160[] memory secondsPerLiquidityCumulativeX128s
+    );
+
 }

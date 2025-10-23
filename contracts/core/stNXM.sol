@@ -1,6 +1,6 @@
 pragma solidity ^0.8.26;
 
-import '@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol';
 import '../libraries/v3-core/PositionValue.sol';
 
 import "../general/Ownable.sol";
@@ -11,7 +11,7 @@ import '../interfaces/IMorpho.sol';
 import "../interfaces/IWNXM.sol";
 import "../interfaces/INexusMutual.sol";
 
-contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
+contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     using SafeERC20 for IERC20;
 
    struct WithdrawalRequest {
@@ -32,8 +32,6 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     IERC20 public nxm;
     // Nxm Master address.
     INxmMaster public nxmMaster;
-    /// @dev Nexus mutual staking NFT
-    IStakingNFT public stakingNFT;
     IMorpho public morpho;
     INonfungiblePositionManager public nfp;
     IUniswapV3Pool public dex;
@@ -41,7 +39,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     // Delay to withdraw
     uint256 public withdrawDelay;
     // Total saved amount of withdrawals pending.
-    uint256 public savedPending;
+    uint256 public pending;
     // Withdrawals may be paused if a hack has recently happened. Timestamp of when the pause happened.
     bool public paused;
     // Address that will receive administration funds from the contract.
@@ -72,35 +70,43 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
 /**************************************************************** Main ****************************************************************/
 /******************************************************************************************************************************************/
 
-    constructor(IERC20 _wNxm) ERC4626(_wNxm) ERC20("Staked NXM", "stNXM") {}
-
-    function initialize(address _dex, address _nfp, address _wNxm, address _nxm, address _nxmMaster, address _morpho)
+    function initialize(address _nfp, address _wNxm, address _nxm, address _nxmMaster, uint256 _mintAmount)
         public
     {
+        __ERC4626_init(IERC20(_wNxm));
+        __ERC20_init("Staked NXM", "stNXM");
         Ownable.initializeOwnable();
+
+        // Need to mint a certain amount and send it to owner. Maybe just arNXM total supply?
+        _mint(owner(), _mintAmount);
+
         wNxm = IERC20(_wNxm);
         nxm = IERC20(_nxm);
         nxmMaster = INxmMaster(_nxmMaster);
-        morpho = IMorpho(_morpho);
         nfp = INonfungiblePositionManager(_nfp);
-        dex = IUniswapV3Pool(_dex);
         adminPercent = 100;
         beneficiary = msg.sender;
-        _mintNewPosition(5000 ether, 5000 ether, 0, type(int24).max);
+    }
+
+    function initializeTwo(address _dex, address _morpho, uint256 _dexDeposit) external {
+        require(msg.sender == owner(), "Only owner may call.");
+        morpho = IMorpho(_morpho);
+        dex = IUniswapV3Pool(_dex);
+        _mintNewPosition(_dexDeposit, _dexDeposit, 0, type(int24).max);
     }
 
     // Update admin fees based on any changes that occurred between last deposit and withdrawal.
     // This is to be used on functions that have balance changes unrelated to rewards within them such as deposit/withdraw.
     modifier update {
         uint256 balance = wNxm.balanceOf(address(this));
-        uint256 staked = _stakedNxm();
+        uint256 staked = stakedNxm();
 
         // This only happens without another update if rewards have entered the contract.
         if (balance > lastBalance && lastStaked <= staked) adminFees += (balance - lastBalance) * adminPercent / DIVISOR;
         _;
         
         lastBalance = wNxm.balanceOf(address(this));
-        lastStaked = _stakedNxm();
+        lastStaked = stakedNxm();
     }
 
     modifier notPaused {
@@ -112,6 +118,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
 /**************************************************************** Public ****************************************************************/
 /******************************************************************************************************************************************
 
+    // Change this so that caller pays, receiver receives, if there's a current withdrawal it fails
+
     /**
      * @dev Underlying withdraw functions differently from ERC4626 because of the required delay.
      * @param caller The caller of the function to withdraw.
@@ -122,8 +130,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      */
     function _withdraw(        
         address caller,
-        address receiver,
-        address owner,
+        address ,
+        address ,
         uint256 assets,
         uint256 shares) 
       internal 
@@ -131,19 +139,18 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
       notPaused
       update
     {
-        owner; caller; receiver;
-        require((_totalPending() + assets) <= wNxm.balanceOf(address(this)), "Not enough NXM available for withdrawal.");
+        require(_convertToAssets(pending + shares, Math.Rounding.Floor) <= wNxm.balanceOf(address(this)), "Not enough NXM available for withdrawal.");
 
-        savedPending = savedPending + assets;
-        _transfer(msg.sender, address(this), shares);
-        WithdrawalRequest memory prevWithdrawal = withdrawals[msg.sender];
-        withdrawals[msg.sender] = WithdrawalRequest(
+        pending += shares;
+        _transfer(caller, address(this), shares);
+        WithdrawalRequest memory prevWithdrawal = withdrawals[caller];
+        withdrawals[caller] = WithdrawalRequest(
             uint48(block.timestamp),
             prevWithdrawal.assets + uint104(assets),
             prevWithdrawal.shares + uint104(shares)
         );
 
-        emit WithdrawRequested(msg.sender, shares, assets, block.timestamp, block.timestamp + withdrawDelay);
+        emit WithdrawRequested(caller, shares, assets, block.timestamp, block.timestamp + withdrawDelay);
     }
 
     /// Need to override here so that we can add the update modifier.
@@ -163,24 +170,29 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @notice Finalize a withdraw request after the withdraw delay ends.
      * @dev Only one withdraw request can be active at a time for a user so this needs no params.
      */
-    function withdrawFinalize() external notPaused update {
-        address user = msg.sender;
-        WithdrawalRequest memory withdrawal = withdrawals[user];
+    function withdrawFinalize(address _user) external notPaused update {
+        //address user = msg.sender;
+        WithdrawalRequest memory withdrawal = withdrawals[_user];
 
         uint256 shares = uint256(withdrawal.shares);
-        uint256 currentAssetAmount = _convertToAssets(shares, Math.Rounding.Floor);
-        uint256 assets = uint256(withdrawal.assets) > currentAssetAmount ? currentAssetAmount : uint256(withdrawal.assets);
+        uint256 assets = _convertToAssets(shares, Math.Rounding.Floor);
         uint256 requestTime = uint256(withdrawal.requestTime);
 
         require((requestTime + withdrawDelay) <= block.timestamp, "Not ready to withdraw");
         require(assets > 0, "No pending amount to withdraw");
 
-        _burn(address(this), shares);
-        wNxm.safeTransfer(user, assets);
-        delete withdrawals[user];
-        savedPending = savedPending - uint256(withdrawal.assets);
+        pending -= uint256(withdrawal.shares);
+        delete withdrawals[_user];
 
-        emit Withdrawal(user, assets, shares, block.timestamp);
+        // We allow 1 day for the withdraw to be finalized, otherwise it's deleted.
+        if (block.timestamp > requestTime + withdrawDelay + 1 days) {
+            _transfer(address(this), _user, shares);
+            return;
+        }
+
+        _burn(address(this), shares);
+        wNxm.safeTransfer(_user, assets);
+        emit Withdrawal(_user, assets, shares, block.timestamp);
     }
 
     /**
@@ -201,28 +213,6 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
         adminFees += rewards * adminPercent / DIVISOR;
 
         emit NxmReward(rewards, block.timestamp);
-    }
-
-    /**
-     * @notice Check and reset all active tranches for each NFT ID. Can be called by anyone.
-     */
-    function resetTranches()
-      public
-      update
-    {
-        // Get IDs for the next 2 years of tranches
-        uint256[] memory futureTranches = _getFutureTranches();
-
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            uint256 id = tokenIds[i];
-            address _stakingPool = tokenIdToPool[id];
-            delete tokenIdToTranches[id];
-
-            for (uint256 j = 0; j < futureTranches.length; j++) {
-                (,,uint256 trancheDeposit,) = IStakingPool(_stakingPool).getDeposit(id, futureTranches[j]);
-                if (trancheDeposit > 0) tokenIdToTranches[id].push(futureTranches[j]);
-            }
-        }
     }
 
     /**
@@ -258,6 +248,28 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
         uint256 withdrawn = _withdrawFromPool(tokenIdToPool[_tokenId], _tokenId, true, false, _trancheIds);
         nxm.approve(address(wNxm), withdrawn);
         IWNXM(address(wNxm)).wrap(withdrawn);
+    }
+
+    /**
+     * @notice Check and reset all active tranches for each NFT ID. Can be called by anyone.
+     */
+    function resetTranches()
+      public
+      update
+    {
+        // Get the first active tranche
+        uint256 firstTranche = block.timestamp / 91 days;
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 id = tokenIds[i];
+            address _stakingPool = tokenIdToPool[id];
+            delete tokenIdToTranches[id];
+
+            for (uint256 tranche = firstTranche; tranche < firstTranche + 8; tranche++) {
+                (,,uint256 trancheDeposit,) = IStakingPool(_stakingPool).getDeposit(id, tranche);
+                if (trancheDeposit > 0) tokenIdToTranches[id].push(tranche);
+            }
+        }
     }
 
     /**
@@ -308,7 +320,8 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @notice Deposit wNXM to Morpho to be lent out with stNXM as collateral.
      * @param _assetAmount Amount of wNXM to be lent out.
      */
-    function morphoDeposit(uint256 _assetAmount) external onlyOwner update {
+    function morphoDeposit(uint256 _assetAmount) external onlyOwner update returns (uint256) {
+        wNxm.approve(address(morpho), _assetAmount);
         morpho.deposit(_assetAmount, address(this));
     }
 
@@ -317,7 +330,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @param _shareAmount Amount of Morpho shares to redeem for wNXM.
      */
     function morphoRedeem(uint256 _shareAmount) external onlyOwner update {
-        morpho.redeem(_shareAmount, address(this));
+        morpho.redeem(_shareAmount, address(this), address(this));
     }
 
     /**
@@ -325,7 +338,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @param tokenId ID of the Uni NFT that we're removing from.
      * @param liquidity Amount of liquidity to remove from the token.
      */
-    function decreaseLiquidityCurrentRange(uint256 tokenId, uint128 liquidity)
+    function decreaseLiquidity(uint256 tokenId, uint128 liquidity)
         external
         onlyOwner
         update
@@ -370,23 +383,23 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     function totalAssets() public view override returns (uint256) {
         // Add staked NXM, NXM in the contract, NXM in the dex and Morpho, subtract the recent chunk of reward from Nexus (because it's wrongfully included in balance),
         // add back in the amount that has been distributed so far, subtract the total amount that's waiting to be withdrawn.
-        return _stakedNxm() + _unstakedNxm() - _totalPending() - adminFees;
+        return stakedNxm() + unstakedNxm() - adminFees;
     }
 
     /**
      * @notice Get the total supply of stNXM.
      * @dev The stNXM in the dex is "virtual" so it must be removed from total supply.
      */
-    function totalSupply() public view override(ERC20, IERC20) returns (uint256) {
+    function totalSupply() public view override(ERC20Upgradeable, IERC20) returns (uint256) {
         // Do not include the "virtual" assets in the Uniswap pool in total supply calculations.
-        (, uint256 amountShares) = _dexBalances();
-        return super.totalSupply() - amountShares;
+        (, uint256 virtualShares) = dexBalances();
+        return super.totalSupply() - virtualShares;
     }
 
     /**
      * @notice Full amount of NXM that's been staked.
      */
-    function _stakedNxm() internal view returns (uint256 assets) {
+    function stakedNxm() public view returns (uint256 assets) {
         for (uint256 i = 0; i < tokenIds.length; i++) {
             uint256 token = tokenIds[i];
             uint256[] memory trancheIds = tokenIdToTranches[token];
@@ -415,20 +428,20 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
     /**
      * @notice Get all NXM that isn't staked. This includes current balance, lent in Morpho, and liquidity on Uni.
      */
-    function _unstakedNxm() internal view returns (uint256 assets) {
+    function unstakedNxm() public view returns (uint256 assets) {
         assets = wNxm.balanceOf(address(this));
 
         uint256 morphoShares = morpho.balanceOf(address(this));
         assets += morpho.convertToAssets(morphoShares);
 
-        (uint256 amountAssets, ) = _dexBalances();
+        (uint256 amountAssets, ) = dexBalances();
         assets += amountAssets;
     }
 
     /**
      * @notice Find balances of both wNXM and stNXM within the Uniswap pool this contract uses.
      */
-    function _dexBalances() internal view returns (uint256 amount0, uint256 amount1) {
+    function dexBalances() public view returns (uint256 amount0, uint256 amount1) {
         (uint160 sqrtRatio,,,,,,) = dex.slot0();
         for (uint256 i = 0; i < dexTokenIds.length; i++) {
             (uint256 posAmount0, uint256 posAmount1) = PositionValue.total(nfp, dexTokenIds[i], sqrtRatio);
@@ -437,27 +450,15 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
         }
     }
 
-    /**
-     * @notice Get the total amount of wNXM that's pending to be withdrawn.
-     * @dev We do this pessimistically. The lower conversion of where it was at the time of withdrawal vs.
-     *      where it is right now is used. This is necessary so that people cannot take advantage by withdrawing
-     *      early to avoid slashing, and they cannot initiate a withdrawal but continue to gain rewards.
-     */
-    function _totalPending() internal view returns (uint256) {
-        return savedPending;
-        //uint256 currentPending = _convertToAssets(balanceOf(address(this)), Math.Rounding.Floor);
-        //return savedPending < currentPending ? savedPending : currentPending;
-    }
-
     /// stNXM includes the inability to withdraw if the amount is over what's in the contract balance.
-    function maxWithdraw(address owner) public view override(ERC4626) returns (uint256) {
+    function maxWithdraw(address owner) public view override(ERC4626Upgradeable) returns (uint256) {
         uint256 ownerMax = _convertToAssets(balanceOf(owner), Math.Rounding.Floor);
         uint256 assetBalance = wNxm.balanceOf(address(this));
         return assetBalance > ownerMax ? ownerMax : assetBalance;
     }
 
     /// stNXM includes the inability to redeem if the amount is over what's in the contract balance.
-    function maxRedeem(address owner) public view override(ERC4626) returns (uint256) {
+    function maxRedeem(address owner) public view override(ERC4626Upgradeable) returns (uint256) {
         uint256 assetBalance = _convertToShares(wNxm.balanceOf(address(this)), Math.Rounding.Floor);
         uint256 ownerBalance = balanceOf(owner);
         return assetBalance > ownerBalance ? ownerBalance : assetBalance;
@@ -521,7 +522,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
         internal
     {
         // make a better initializer
-        require(lastTotal == 0, "May only be minted on initialization.");
+        require(msg.sender == owner(), "May only be minted on initialization.");
 
         wNxm.approve(address(dex), amount0ToAdd);
         _mint(address(this), amount1ToAdd);
@@ -551,20 +552,6 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
             uint256 refund = amount1ToAdd - amount1;
             _burn(address(this), refund);
         }
-    }
-
-    /// @dev get future tranche IDs to collect rewards
-    function _getFutureTranches() internal view returns (uint256[] memory) {
-        uint8 trancheCount = 8;
-        uint256 trancheDuration = 91 days;
-        uint256[] memory _trancheIds = new uint256[](trancheCount);
-
-        // assuming we have not collected rewards from last expired tranche
-        uint256 lastExpiredTrancheId = (block.timestamp / trancheDuration) - 1;
-        for (uint256 i = 0; i < trancheCount; i++) {
-            _trancheIds[i] = lastExpiredTrancheId + i;
-        }
-        return _trancheIds;
     }
 
 /******************************************************************************************************************************************/
@@ -626,7 +613,7 @@ contract stNXM is ERC4626, ERC721TokenReceiver, Ownable {
      * @param token address of token to withdraw
      */
     function rescueToken(address token) external onlyOwner {
-        require(token != address(wNxm), "Cannot rescue NXM");
+        require(token != address(wNxm) && token != address(this), "Cannot rescue NXM or stNXM.");
         uint256 balance = IERC20(token).balanceOf(address(this));
         IERC20(token).safeTransfer(msg.sender, balance);
     }
