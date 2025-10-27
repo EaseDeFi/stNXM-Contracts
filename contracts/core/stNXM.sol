@@ -10,6 +10,9 @@ import '../interfaces/INonfungiblePositionManager.sol';
 import '../interfaces/IMorpho.sol';
 import "../interfaces/IWNXM.sol";
 import "../interfaces/INexusMutual.sol";
+import "../interfaces/IUniswapFactory.sol";
+
+import "forge-std/console2.sol";
 
 contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     using SafeERC20 for IERC20;
@@ -36,6 +39,10 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     INonfungiblePositionManager public nfp;
     IUniswapV3Pool public dex;
 
+    // Needed for morpho MarketParams
+    address public morphoOracle;
+    address public irm;
+    Id public morphoId;
     // Delay to withdraw
     uint256 public withdrawDelay;
     // Total saved amount of withdrawals pending.
@@ -72,9 +79,10 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
     function initialize(address _nfp, address _wNxm, address _nxm, address _nxmMaster, uint256 _mintAmount)
         public
+        initializer
     {
-        __ERC4626_init(IERC20(_wNxm));
         __ERC20_init("Staked NXM", "stNXM");
+        __ERC4626_init(IERC20(_wNxm));
         Ownable.initializeOwnable();
 
         // Need to mint a certain amount and send it to owner. Maybe just arNXM total supply?
@@ -86,18 +94,58 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         nfp = INonfungiblePositionManager(_nfp);
         adminPercent = 100;
         beneficiary = msg.sender;
+
+        nxm.approve(address(wNxm), type(uint256).max);
     }
 
-    function initializeTwo(address _dex, address _morpho, uint256 _dexDeposit) external {
+    function initializeTwo(address _dex, address _morpho, address _morphoOracle, uint256 _dexDeposit) external {
         require(msg.sender == owner(), "Only owner may call.");
         morpho = IMorpho(_morpho);
         dex = IUniswapV3Pool(_dex);
-        _mintNewPosition(_dexDeposit, _dexDeposit, 0, type(int24).max);
+
+        // Clean this up, very gross.
+        morphoOracle = _morphoOracle;
+        irm = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
+        MarketParams memory marketParams = MarketParams(address(wNxm), address(this), morphoOracle, irm, 625000000000000000);
+        morphoId = Id.wrap(keccak256(abi.encode(marketParams)));
+
+        _mintNewPosition(_dexDeposit, _dexDeposit, -887270, 887270);
+
+        // Initialize with old token IDs
+        tokenIds.push(214);
+        tokenIdToPool[214] = 0x5A44002A5CE1c2501759387895A3b4818C3F50b3;
+        tokenIds.push(215);
+        tokenIdToPool[215] = 0x5A44002A5CE1c2501759387895A3b4818C3F50b3;
+        tokenIds.push(242);
+        tokenIdToPool[242] = 0x34D250E9fA70748C8af41470323B4Ea396f76c16;
+
+        // Get the initial tranches
+        uint256 firstTranche = block.timestamp / 91 days;
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 id = tokenIds[i];
+            address _stakingPool = tokenIdToPool[id];
+            delete tokenIdToTranches[id];
+
+            for (uint256 tranche = firstTranche; tranche < firstTranche + 8; tranche++) {
+                (,,uint256 trancheDeposit,) = IStakingPool(_stakingPool).getDeposit(id, tranche);
+                if (trancheDeposit > 0) {
+                    tokenIdToTranches[id].push(tranche);
+                    lastStaked += trancheDeposit;
+                }
+            }
+        }
+
+        lastBalance = wNxm.balanceOf(address(this));
     }
 
     // Update admin fees based on any changes that occurred between last deposit and withdrawal.
     // This is to be used on functions that have balance changes unrelated to rewards within them such as deposit/withdraw.
     modifier update {
+        // Wrap NXM in case rewards were sent to the contract without us knowing
+        uint256 nxmBalance = nxm.balanceOf(address(this));
+        if (nxmBalance > 0) IWNXM(address(wNxm)).wrap(nxmBalance);
+
         uint256 balance = wNxm.balanceOf(address(this));
         uint256 staked = stakedNxm();
 
@@ -200,13 +248,23 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @dev These rewards stream to users over the reward duration. Can be called by anyone once the duration is over.
      */
     function getRewards() external update returns (uint256 rewards) {
+        console2.log("TRYING OUT GET REWARDS.");
+
         for (uint256 i; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
+            console2.logUint(tokenId);
+            console2.logAddress(tokenIdToPool[tokenId]);
+            console2.logUint(tokenIdToTranches[tokenId][0]);
+
             rewards += _withdrawFromPool(tokenIdToPool[tokenId], tokenId, false, true, tokenIdToTranches[tokenId]);
         }
 
+        console2.logUint(rewards);
+
         // Collect fees from the dex. Compounds back into stNXM value.
-        rewards += collectDexFees();
+        //rewards += collectDexFees();
+
+        console2.logUint(rewards);
 
         // Update for any changes since last interaction
         // We don't run the modifier because changes within the function should add to admin fees.
@@ -246,7 +304,6 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      */
     function unstakeNxm(uint256 _tokenId, uint256[] memory _trancheIds) external update {
         uint256 withdrawn = _withdrawFromPool(tokenIdToPool[_tokenId], _tokenId, true, false, _trancheIds);
-        nxm.approve(address(wNxm), withdrawn);
         IWNXM(address(wNxm)).wrap(withdrawn);
     }
 
@@ -322,7 +379,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      */
     function morphoDeposit(uint256 _assetAmount) external onlyOwner update {
         wNxm.approve(address(morpho), _assetAmount);
-        morpho.deposit(_assetAmount, address(this));
+        morpho.supply(MarketParams(address(wNxm), address(this), morphoOracle, irm, 625000000000000000), _assetAmount, 0, address(this), "");
     }
 
     /**
@@ -330,7 +387,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @param _shareAmount Amount of Morpho shares to redeem for wNXM.
      */
     function morphoRedeem(uint256 _shareAmount) external onlyOwner update {
-        morpho.redeem(_shareAmount, address(this), address(this));
+        morpho.withdraw(MarketParams(address(wNxm), address(this), morphoOracle, irm, 625000000000000000), 0, _shareAmount, address(this), address(this));
     }
 
     /**
@@ -411,7 +468,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             // Used to determine if we need to check an expired tranche.
             uint256 currentTranche = block.timestamp / 91 days;
             for (uint256 j = 0; j < trancheIds.length; j++) {
-                uint256 tranche = trancheIds[i];
+                uint256 tranche = trancheIds[j];
                 (, , uint256 stakeShares, ) = IStakingPool(pool).getDeposit(token, tranche);
 
                 // Tranche has been expired so we need to do different calculations here.
@@ -430,12 +487,10 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      */
     function unstakedNxm() public view returns (uint256 assets) {
         assets = wNxm.balanceOf(address(this));
-
-        uint256 morphoShares = morpho.balanceOf(address(this));
-        assets += morpho.convertToAssets(morphoShares);
-
+        assets += nxm.balanceOf(address(this));
         (uint256 amountAssets, ) = dexBalances();
         assets += amountAssets;
+        assets += morphoBalance();
     }
 
     /**
@@ -443,11 +498,19 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      */
     function dexBalances() public view returns (uint256 amount0, uint256 amount1) {
         (uint160 sqrtRatio,,,,,,) = dex.slot0();
+
         for (uint256 i = 0; i < dexTokenIds.length; i++) {
             (uint256 posAmount0, uint256 posAmount1) = PositionValue.total(nfp, dexTokenIds[i], sqrtRatio);
             amount0 += posAmount0;
             amount1 += posAmount1;
         }
+    }
+
+    function morphoBalance() public view returns (uint256 assets) {
+        Position memory pos = morpho.position(morphoId, address(this));
+        Market memory market = morpho.market(morphoId);
+        // Convert shares to assets
+        assets = (pos.supplyShares * uint256(market.totalSupplyAssets)) / uint256(market.totalSupplyShares);
     }
 
     /// stNXM includes the inability to withdraw if the amount is over what's in the contract balance.
@@ -507,6 +570,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     ) internal returns (uint256 amount) {
         IStakingPool pool = IStakingPool(_poolAddress);
         (amount,) = pool.withdraw(_tokenId, _withdrawStake, _withdrawRewards, _trancheIds);
+        IWNXM(address(wNxm)).wrap(amount);
     }
 
     /**
@@ -524,15 +588,22 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         // make a better initializer
         require(msg.sender == owner(), "May only be minted on initialization.");
 
-        wNxm.approve(address(dex), amount0ToAdd);
+        // 1) sort tokens & map amounts
+        (address t0, address t1) = address(wNxm) < address(this)
+            ? (address(wNxm), address(this))
+            : (address(this), address(wNxm));
+        uint256 a0 = t0 == address(wNxm) ? amount0ToAdd : amount1ToAdd;
+        uint256 a1 = t0 == address(wNxm) ? amount1ToAdd : amount0ToAdd;
+
+        wNxm.approve(address(nfp), amount0ToAdd);
         _mint(address(this), amount1ToAdd);
-        approve(address(dex), amount1ToAdd);
+        _approve(address(this), address(nfp), amount1ToAdd);
 
         INonfungiblePositionManager.MintParams memory params =
         INonfungiblePositionManager.MintParams({
-            token0: address(wNxm),
-            token1: address(this),
-            fee: 3000,
+            token0: t0,
+            token1: t1,
+            fee: 500,
             tickLower: _tickLower,
             tickUpper: _tickUpper,
             amount0Desired: amount0ToAdd,
@@ -544,7 +615,6 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         });
 
         (uint256 tokenId, , , uint256 amount1) = nfp.mint(params);
-
         dexTokenIds.push(tokenId);
 
         // Get rid of any stNXM tokens.

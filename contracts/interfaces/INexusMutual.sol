@@ -25,6 +25,8 @@ interface INxmMaster {
     function getLatestAddress(
         bytes2 _contractName
     ) external view returns (address payable contractAddress);
+
+    function switchMembership(address _newMembership) external;
 }
 
 interface IPooledStaking {

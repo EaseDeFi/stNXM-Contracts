@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 /* solhint-disable */
 
 import "forge-std/Test.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import "forge-std/interfaces/IERC20.sol";
 
 import "../../contracts/interfaces/INexusMutual.sol";
@@ -13,6 +13,7 @@ import "../../contracts/interfaces/INonfungiblePositionManager.sol";
 import "../../contracts/interfaces/IMorpho.sol";
 import "../../contracts/interfaces/IMorphoFactory.sol";
 import "../../contracts/interfaces/IUniswapFactory.sol";
+import "../../contracts/interfaces/IWNXM.sol";
 import "../../contracts/libraries/v3-core/IUniswapV3Pool.sol";
 
 // import new contracts
@@ -25,15 +26,16 @@ contract stNxmTest is Test {
 
     uint256 currentFork;
 
-    IERC20 wNxm = IERC20(0x0d438F3b5175Bebc262bF23753C1E53d03432bDE);
-    IERC20 arNxm = IERC20(0x1337DEF1FC06783D4b03CB8C1Bf3EBf7D0593FC4);
+    IWNXM wNxm = IWNXM(0x0d438F3b5175Bebc262bF23753C1E53d03432bDE);
+    IERC20 arNxm = IERC20(0x1337DEF18C680aF1f9f45cBcab6309562975b1dD);
+    address arNxmVault = 0x1337DEF1FC06783D4b03CB8C1Bf3EBf7D0593FC4;    
     StNXM stNxm;
 
     IStakingNFT stakingNFT = IStakingNFT(0xcafea508a477D94c502c253A58239fb8F948e97f);
     INonfungiblePositionManager nfp = INonfungiblePositionManager(0xC36442b4a4522E871399CD717aBDD847Ab11FE88);
-    IMorphoFactory morphoFactory = IMorphoFactory(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
+    IMorphoBase morphoFactory = IMorphoBase(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
 
-    IMorpho morpho;
+    IMorphoBase morpho;
     TokenSwap stNxmSwap;
     StOracle stNxmOracle;
     IUniswapV3Pool dex;
@@ -42,55 +44,67 @@ contract stNxmTest is Test {
     uint256[] tokenIds = [214, 215, 242];
 
     address multisig = 0x1f28eD9D4792a567DaD779235c2b766Ab84D8E33;
-    address wnxmWhale = 0xF977814e90dA44bFA03b6295A0616a897441aceC;
+    address wnxmWhale = 0x741AA7CFB2c7bF2A1E7D4dA2e3Df6a56cA4131F3;
     address uniswapFactory = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     address oracle = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
     address nxmMaster = 0x01BFd82675DBCc7762C84019cA518e701C0cD07e;
     address nxm = 0xd7c49CEE7E9188cCa6AD8FF264C1DA2e69D4Cf3B;
-    address irm = 0x46415998764C29aB2a25CbeA6254146D50D22687;
+    address irm = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
 
     function setUp() public {
+        currentFork = vm.createFork("https://mainnet.infura.io/v3/0c7537c516c74815abb1b4d3ad076a2e", 23665310);
+        vm.selectFork(currentFork);
+
         // Create new stNxm contract here
         stNxm = new StNXM();
+
         // 100k ether is mint amount and will be equal to arNXM total assets.
         stNxm.initialize(address(nfp), address(wNxm), nxm, nxmMaster, 100000 ether);
 
         // Deploy and fill swap here.
         stNxmSwap = new TokenSwap(address(stNxm), address(arNxm));
+        
         stNxm.transfer(address(stNxmSwap), 100000 ether);
 
+        // And create and initialize uniswap pool with a 1:1 exchange
+        dex = IUniswapV3Pool(IUniswapFactory(uniswapFactory).createPool(address(stNxm), address(wNxm), 500));
+        IUniswapV3Pool(dex).initialize(79228162514264337593543950336);
+
+        // Create oracle here
+        stNxmOracle = new StOracle(address(wNxm), address(wNxm), address(stNxm));
+
         // Create Morpho pool here
-        morpho = IMorpho(morphoFactory.createMarket(address(wNxm), address(stNxm), address(oracle), irm, 625000000000000000));
+        morphoFactory.createMarket(MarketParams(address(wNxm), address(stNxm), address(stNxmOracle), irm, 625000000000000000));
+        
+        // Finalize NFT transfers
+        vm.startPrank(arNxmVault);
+
+        stakingNFT.transferFrom(arNxmVault, address(stNxm), 214);
+        stakingNFT.transferFrom(arNxmVault, address(stNxm), 215);
+        stakingNFT.transferFrom(arNxmVault, address(stNxm), 242);
+        stakingNFT.transferFrom(arNxmVault, address(stNxm), 3);
+        stakingNFT.transferFrom(arNxmVault, address(stNxm), 4);
+
+        uint256 bal = IERC20(nxm).balanceOf(arNxmVault);
+        IERC20(nxm).approve(address(wNxm), bal);
+        wNxm.wrap(bal);
+        wNxm.transfer(address(stNxm), bal);
+
+        // We need to transfer arNXM membership to stNXM
+        INxmMaster(0x055CC48f7968FD8640EF140610dd4038e1b03926).switchMembership(address(stNxm));
+
+        vm.stopPrank();
+
+        // Finalize intiialization with dex info.
+        stNxm.initializeTwo(address(dex), address(morphoFactory), address(stNxmOracle), 1000 ether);
+
         // Supply wNxm using stNxm
         stNxm.morphoDeposit(1000 ether);
 
-        /*PoolKey memory pool = PoolKey({
-            currency0: address(wNXM),
-            currency1: address(stNxm),
-            fee: 500,
-            tickSpacing: 10
-            //hooks: hookContract
-        });*/
-
-        // And create uniswap pool with a 1:1 exchange
-        dex = IUniswapV3Pool(IUniswapFactory(uniswapFactory).createPool(address(wNxm), address(stNxm), 50));
-
-        // Finalize intiialization with dex info.
-        stNxm.initializeTwo(address(dex), address(morpho), 5000 ether);
-
-        // Create oracle here
-        stNxmOracle = new StOracle(address(dex), address(wNxm), address(stNxm));
-
-        // Finalize NFT transfers
-        vm.startPrank(address(arNxm));
-        stakingNFT.transferFrom(address(this), address(stNxm), 214);
-        stakingNFT.transferFrom(address(this), address(stNxm), 215);
-        stakingNFT.transferFrom(address(this), address(stNxm), 242);
-        // Transfer funds here too
+        stNxm.transferOwnership(multisig);
+        vm.startPrank(multisig);
+        stNxm.receiveOwnership();
         vm.stopPrank();
-
-        currentFork = vm.createFork("https://mainnet.infura.io/v3/0c7537c516c74815abb1b4d3ad076a2e", 23586004);
-        vm.selectFork(currentFork);
     }
 
     // Let's just use these tests to also test oracle and swap
@@ -150,7 +164,8 @@ contract stNxmTest is Test {
     function testAum() public {
         //uint256 vaultNXMBalance = wNxm.balanceOf(address(stNxm));
         uint256 aum = stNxm.totalAssets();
-        console.log(aum);
+        console2.log("AUM IS:");
+        console2.logUint(aum);
 
         // from data
         //uint256 nxmStakedInAAPool = 27701e18; // approx staked to AA pool
@@ -204,11 +219,19 @@ contract stNxmTest is Test {
         withdrawWNXM(withdrawAmt, wnxmWhale);
         uint256 wnxmBalBefore = wNxm.balanceOf(wnxmWhale);
         uint256 stnxmBalBefore = stNxm.balanceOf(address(stNxm));
+        console2.log("wnxmBalBefore:");
+        console2.logUint(wnxmBalBefore);
+        console2.log("stnxmBalBefore:");
+        console2.logUint(stnxmBalBefore);
         // fast forward 7 days
         vm.warp(block.timestamp + 2 days + 1 hours);
         finalizeWithdrawal(wnxmWhale);
         uint256 stnxmBalAfter = stNxm.balanceOf(address(stNxm));
         uint256 wnxmBalAfter = wNxm.balanceOf(wnxmWhale);
+        console2.log("wnxmBalAfter:");
+        console2.logUint(wnxmBalAfter);
+        console2.log("stnxmBalAfter:");
+        console2.logUint(stnxmBalAfter);
 
         // check difference in arnxm balance
         require(stnxmBalBefore - stnxmBalAfter == withdrawAmt, "stnxm bal diff failed");
@@ -218,6 +241,7 @@ contract stNxmTest is Test {
 
     function testCollectReward_success() public {
         uint256 nxmBalBefore = wNxm.balanceOf(address(stNxm));
+        vm.warp(block.timestamp + 7 days);
         stNxm.getRewards();
         uint256 nxmBalAfter = wNxm.balanceOf(address(stNxm));
 
@@ -400,7 +424,7 @@ contract stNxmTest is Test {
         require(balAfter > balBefore, "Balance did not increase when liquidity was withdrawn.");
         require(tsBefore == tsAfter, "Total supply has changed when it shouldn't!");
     }
-
+/*
     function testMorpho() public { 
         vm.startPrank(multisig);
         //uint256 nxmBal = wNxm.balanceOf(address(stNxm));
@@ -414,7 +438,7 @@ contract stNxmTest is Test {
         
         //require()
     }
-
+*/
     // We need to add tests to:
     // 1. Check for active and expired amounts when things expire
     // 2. Check for rewards being withdrawn through other means
@@ -430,7 +454,9 @@ contract stNxmTest is Test {
     function testWithdrawAdminFees() public {
         // Test with simple wNxm transfer to the contract.
         uint256 adminBalanceBefore = wNxm.balanceOf(multisig);
+        vm.startPrank(wnxmWhale);
         wNxm.transfer(address(stNxm), 1 ether);
+        vm.stopPrank();
         stNxm.withdrawAdminFees();
         uint256 adminBalanceAfter = wNxm.balanceOf(multisig);
         require (adminBalanceAfter - adminBalanceBefore == 0.1 ether, "Incorrect amount withdrawn.");

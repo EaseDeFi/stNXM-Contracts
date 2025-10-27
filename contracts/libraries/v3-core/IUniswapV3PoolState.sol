@@ -47,6 +47,10 @@ interface IUniswapV3PoolState {
     /// @dev This value has no relationship to the total liquidity across all ticks
     function liquidity() external view returns (uint128);
 
+    /// @notice The currently in range liquidity available to the pool
+    /// @dev This value has no relationship to the total liquidity across all ticks
+    function tickSpacing() external view returns (int24);
+
     /// @notice Look up information about a specific tick in the pool
     /// @param tick The tick to look up
     /// @return liquidityGross the total amount of position liquidity that uses the pool either as tick lower or
@@ -121,5 +125,7 @@ interface IUniswapV3PoolState {
         int56[] memory tickCumulatives,
         uint160[] memory secondsPerLiquidityCumulativeX128s
     );
+
+    function initialize(uint160 sqrtPriceX96) external;
 
 }
