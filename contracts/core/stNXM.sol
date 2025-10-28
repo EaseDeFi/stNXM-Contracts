@@ -63,7 +63,6 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
     // Ids for Uniswap NFTs
     uint256[] public dexTokenIds;
-
     /// @dev record of vaults NFT tokenIds
     uint256[] public tokenIds;
     /// @dev tokenId to risk pool address
@@ -297,7 +296,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @param _trancheIds Tranches to unstake from.
      */
     function unstakeNxm(uint256 _tokenId, uint256[] memory _trancheIds) external update {
-        uint256 withdrawn = _withdrawFromPool(tokenIdToPool[_tokenId], _tokenId, true, false, _trancheIds);
+        _withdrawFromPool(tokenIdToPool[_tokenId], _tokenId, true, false, _trancheIds);
     }
 
     /**
@@ -591,9 +590,9 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         uint256 a0 = t0 == address(wNxm) ? amount0ToAdd : amount1ToAdd;
         uint256 a1 = t0 == address(wNxm) ? amount1ToAdd : amount0ToAdd;
 
-        wNxm.approve(address(nfp), amount0ToAdd);
-        _mint(address(this), amount1ToAdd);
-        _approve(address(this), address(nfp), amount1ToAdd);
+        wNxm.approve(address(nfp), a0);
+        _mint(address(this), a1);
+        _approve(address(this), address(nfp), a1);
 
         INonfungiblePositionManager.MintParams memory params =
         INonfungiblePositionManager.MintParams({
@@ -602,8 +601,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             fee: 500,
             tickLower: _tickLower,
             tickUpper: _tickUpper,
-            amount0Desired: amount0ToAdd,
-            amount1Desired: amount1ToAdd,
+            amount0Desired: a0,
+            amount1Desired: a1,
             amount0Min: 0,
             amount1Min: 0,
             recipient: address(this),
@@ -614,8 +613,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         dexTokenIds.push(tokenId);
 
         // Get rid of any stNXM tokens.
-        if (amount1 < amount1ToAdd) {
-            uint256 refund = amount1ToAdd - amount1;
+        if (amount1 < a1) {
+            uint256 refund = a1 - amount1;
             _burn(address(this), refund);
         }
     }

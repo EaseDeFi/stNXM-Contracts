@@ -34,10 +34,10 @@ contract stNxmTest is Test {
 
     IStakingNFT stakingNFT = IStakingNFT(0xcafea508a477D94c502c253A58239fb8F948e97f);
     INonfungiblePositionManager nfp = INonfungiblePositionManager(0xC36442b4a4522E871399CD717aBDD847Ab11FE88);
-    IMorphoBase morphoFactory = IMorphoBase(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
+    IMorpho morphoFactory = IMorpho(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
     ISwapRouter swapRouter = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
 
-    IMorphoBase morpho;
+    IMorpho morpho;
     TokenSwap stNxmSwap;
     StOracle stNxmOracle;
     IUniswapV3Pool dex;
@@ -74,11 +74,12 @@ contract stNxmTest is Test {
         IUniswapV3Pool(dex).initialize(79228162514264337593543950336);
 
         // Create oracle here
-        stNxmOracle = new StOracle(address(wNxm), address(wNxm), address(stNxm));
+        stNxmOracle = new StOracle(address(dex), address(wNxm), address(stNxm));
 
         // Create Morpho pool here
         morphoFactory.createMarket(MarketParams(address(wNxm), address(stNxm), address(stNxmOracle), irm, 625000000000000000));
-        
+        morpho = morphoFactory;
+
         // Finalize NFT transfers
         vm.startPrank(arNxmVault);
 
@@ -165,24 +166,17 @@ contract stNxmTest is Test {
     }
 
     function testAum() public {
-        //uint256 vaultNXMBalance = wNxm.balanceOf(address(stNxm));
         uint256 aum = stNxm.totalAssets();
-
-        // from data
-        //uint256 nxmStakedInAAPool = 27701e18; // approx staked to AA pool
-        //uint256 nxmStakedInAAAPool = 83103e18; // approx staked to AAA pool
-
-        //require(aum >= (vaultNXMBalance + nxmStakedInAAPool + nxmStakedInAAAPool), "Incorrect Aum");
+        uint256 arnxmAum = 113776349578321093826437;
+        require(aum < arnxmAum + 50 ether && aum > arnxmAum - 50 ether, "Incorrect Aum");
     }
 
     // Test the staked amount if nothing changes other than a stake expiring.
     function testStakeAfterExpiry() public {
         uint256 startStake = stNxm.stakedNxm();
-        uint256 firstUnstaked = stNxm.unstakedNxm();
         vm.warp(block.timestamp + 100 days);
         IStakingPool(riskPools[0]).processExpirations(true);
         uint256 endStake = stNxm.stakedNxm();
-        uint256 unstaked = stNxm.unstakedNxm();
         require(startStake == endStake, "Ending stake is not equal to starting stake.");
     }
 
@@ -406,19 +400,26 @@ contract stNxmTest is Test {
     }
 
     function testMorpho() public { 
-        vm.startPrank(multisig);
-        uint256 nxmBal = wNxm.balanceOf(address(stNxm));
-        //uint256 morphoBal = morpho.balanceOf(address(stNxm));
+        MarketParams memory marketParams = MarketParams(address(wNxm), address(stNxm), address(stNxmOracle), irm, 625000000000000000);
+        Id morphoId = Id.wrap(keccak256(abi.encode(marketParams)));
+
+        Market memory market = morpho.market(morphoId);
+        Position memory pos = morpho.position(morphoId, address(stNxm));
+
         vm.startPrank(multisig);
         stNxm.morphoDeposit(1000 ether);
         vm.stopPrank();
-        //require(morpho.balanceOf(address(stNxm)) > morphoBal);
-        //require(wNxm.balanceOf)
 
-        stNxm.morphoRedeem(1000 ether);
-        //require(morpho.balanceOf(address(stNxm)) == 0);
+        pos = morpho.position(morphoId, address(stNxm));
+        require(pos.supplyShares > 0, "New assets did not increase.");
+
+        vm.startPrank(multisig);
+        stNxm.morphoRedeem(pos.supplyShares);
+        vm.stopPrank();
+
+        pos = morpho.position(morphoId, address(stNxm));
         
-        //require()
+        require(pos.supplyShares == 0, "New assets did not return to normal.");
     }
 
     function testResetTranches() public {
@@ -487,22 +488,33 @@ contract stNxmTest is Test {
         require(balance == 956860757679165373, "Swap didn't execute correctly.");
     }
 
-    /*
+    
     function testOracle() public {
-        uint256 price = stOracle.price();
-        require(price == 1 ether, "Incorrect starting price.");
-        dex.swap(someamount);
-        vm.warp(block.timestamp + 1800);
-        uint256 price = stOracle.price();
+        //uint256 price = stNxmOracle.price();
+        //require(price == 1 ether, "Incorrect starting price.");
+        uint256 price;
+
+        // Make a random uniswap exchange so there are fees in the pool.
+        vm.startPrank(wnxmWhale);
+        wNxm.approve(address(swapRouter), 1 ether);
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams(address(wNxm), address(stNxm), 500, wnxmWhale, 1000000000000000, 1 ether, 0, 0);
+        swapRouter.exactInputSingle(params);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 180000);
+        price = stNxmOracle.price();
         require(price > 1 ether, "Incorrect ending price on oracle.");
-        dex.swap(hugeamount);
+
+        // Make a random uniswap exchange so there are fees in the pool.
+        vm.startPrank(wnxmWhale);
+        wNxm.approve(address(swapRouter), 10000 ether);
+        params = ISwapRouter.ExactInputSingleParams(address(wNxm), address(stNxm), 500, wnxmWhale, 1000000000000000, 1 ether, 0, 0);
+        swapRouter.exactInputSingle(params);
+        vm.stopPrank();
+
         vm.warp(block.timestamp + 1800);
         vm.expectRevert();
-        uint256 price = stOracle.price();
-    }*/
-
-    // Do swap tests
-
-    // Do oracle tests
+        price = stNxmOracle.price();
+    }
 
 }

@@ -1,6 +1,6 @@
 pragma solidity ^0.8.26;
 import "../libraries/v3-core/IUniswapV3Pool.sol";
-import "../libraries/v3-core//OracleLibrary.sol";
+import "../libraries/v3-core/OracleLibrary.sol";
 
 contract StOracle {
 
@@ -40,7 +40,7 @@ contract StOracle {
 
     // Checks if the price isn't too high.
     // Since the only reason price should increase is because of profits from staking,
-    // over 20% APY or so per year is an unreasonable gain and something is likely wrong.
+    // over 50% APY or so per year is an unreasonable gain and something is likely wrong.
     function sanePrice(uint256 _price) public view returns (bool) {
         // Amount of 1 year it's been
         uint256 elapsedTime = block.timestamp - startTime;
