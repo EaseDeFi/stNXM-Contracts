@@ -94,6 +94,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         nfp = INonfungiblePositionManager(_nfp);
         adminPercent = 100;
         beneficiary = msg.sender;
+        withdrawDelay = 2 days;
 
         nxm.approve(address(wNxm), type(uint256).max);
     }
@@ -248,27 +249,19 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @dev These rewards stream to users over the reward duration. Can be called by anyone once the duration is over.
      */
     function getRewards() external update returns (uint256 rewards) {
-        console2.log("TRYING OUT GET REWARDS.");
-
-        for (uint256 i; i < tokenIds.length; i++) {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
-            console2.logUint(tokenId);
-            console2.logAddress(tokenIdToPool[tokenId]);
-            console2.logUint(tokenIdToTranches[tokenId][0]);
-
             rewards += _withdrawFromPool(tokenIdToPool[tokenId], tokenId, false, true, tokenIdToTranches[tokenId]);
         }
 
-        console2.logUint(rewards);
-
         // Collect fees from the dex. Compounds back into stNXM value.
-        //rewards += collectDexFees();
-
-        console2.logUint(rewards);
+        rewards += collectDexFees();
 
         // Update for any changes since last interaction
         // We don't run the modifier because changes within the function should add to admin fees.
         adminFees += rewards * adminPercent / DIVISOR;
+
+        IWNXM(address(wNxm)).wrap(rewards);
 
         emit NxmReward(rewards, block.timestamp);
     }
@@ -286,9 +279,9 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             // amount1 is stNXM
             (uint256 amount0, uint256 amount1) = nfp.collect(INonfungiblePositionManager.CollectParams(
                 dexTokenIds[i],
-                address(this),          // recipient of the fees
-                0,                      // maximum amount of amount0
-                0                       // maximum amount of amount1
+                address(this),                          // recipient of the fees
+                type(uint128).max,                      // maximum amount of amount0
+                type(uint128).max                       // maximum amount of amount1
             ));
 
             // Burn the stNXM fees.
@@ -409,7 +402,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             deadline: block.timestamp
         });
 
-        (, uint256 amount1) = nfp.decreaseLiquidity(params);
+        nfp.decreaseLiquidity(params);
+        (uint256 amount0, uint256 amount1) = nfp.collect(INonfungiblePositionManager.CollectParams(tokenId, address(this), type(uint128).max, type(uint128).max));
 
         // Burn stNXM that was removed.
         if (amount1 > 0) _burn(address(this), amount1);
@@ -474,7 +468,10 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
                 // Tranche has been expired so we need to do different calculations here.
                 if (tranche < currentTranche) {
                     (, uint256 amountAtExpiry, uint256 sharesAtExpiry) = IStakingPool(pool).getExpiredTranche(tranche);
-                    assets += (amountAtExpiry * stakeShares) / sharesAtExpiry;
+                    // Pool has been properly expired here.
+                    if (sharesAtExpiry > 0) assets += (amountAtExpiry * stakeShares) / sharesAtExpiry;
+                    // The tranche ended but expirations have not been processed.
+                    else assets += (activeStake * stakeShares) / stakeSharesSupply;
                 } else {
                     assets += (activeStake * stakeShares) / stakeSharesSupply;
                 }

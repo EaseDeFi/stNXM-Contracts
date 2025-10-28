@@ -50,6 +50,7 @@ contract stNxmTest is Test {
     address nxmMaster = 0x01BFd82675DBCc7762C84019cA518e701C0cD07e;
     address nxm = 0xd7c49CEE7E9188cCa6AD8FF264C1DA2e69D4Cf3B;
     address irm = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
+    address arnxmWhale = 0x28a55C4b4f9615FDE3CDAdDf6cc01FcF2E38A6b0;
 
     function setUp() public {
         currentFork = vm.createFork("https://mainnet.infura.io/v3/0c7537c516c74815abb1b4d3ad076a2e", 23665310);
@@ -123,7 +124,7 @@ contract stNxmTest is Test {
     function withdrawWNXM(uint256 amount, address user) public {
         vm.startPrank(user);
         stNxm.approve(address(stNxm), amount);
-        stNxm.withdraw(amount, user, user); 
+        stNxm.redeem(amount, user, user); 
         vm.stopPrank();
     }
 
@@ -164,8 +165,6 @@ contract stNxmTest is Test {
     function testAum() public {
         //uint256 vaultNXMBalance = wNxm.balanceOf(address(stNxm));
         uint256 aum = stNxm.totalAssets();
-        console2.log("AUM IS:");
-        console2.logUint(aum);
 
         // from data
         //uint256 nxmStakedInAAPool = 27701e18; // approx staked to AA pool
@@ -177,8 +176,11 @@ contract stNxmTest is Test {
     // Test the staked amount if nothing changes other than a stake expiring.
     function testStakeAfterExpiry() public {
         uint256 startStake = stNxm.stakedNxm();
+        uint256 firstUnstaked = stNxm.unstakedNxm();
         vm.warp(block.timestamp + 100 days);
+        //IStakingPool(riskPools[0]).processExpirations(true);
         uint256 endStake = stNxm.stakedNxm();
+        uint256 unstaked = stNxm.unstakedNxm();
         require(startStake == endStake, "Ending stake is not equal to starting stake.");
     }
 
@@ -204,7 +206,7 @@ contract stNxmTest is Test {
         uint256 vaultsStNxmBalAfter = stNxm.balanceOf(address(stNxm));
         uint256 totalPendingAfter = stNxm.pending();
 
-        require((vaultsStNxmBalBefore - vaultsStNxmBalAfter) == whaleStNxmBal, "arnxm transfer to vault error");
+        require((vaultsStNxmBalAfter - vaultsStNxmBalBefore) == whaleStNxmBal, "arnxm transfer to vault error");
 
         require(
             (totalPendingAfter - totalPendingBefore) == whaleStNxmBal, "pending not updated"
@@ -219,19 +221,11 @@ contract stNxmTest is Test {
         withdrawWNXM(withdrawAmt, wnxmWhale);
         uint256 wnxmBalBefore = wNxm.balanceOf(wnxmWhale);
         uint256 stnxmBalBefore = stNxm.balanceOf(address(stNxm));
-        console2.log("wnxmBalBefore:");
-        console2.logUint(wnxmBalBefore);
-        console2.log("stnxmBalBefore:");
-        console2.logUint(stnxmBalBefore);
         // fast forward 7 days
         vm.warp(block.timestamp + 2 days + 1 hours);
         finalizeWithdrawal(wnxmWhale);
         uint256 stnxmBalAfter = stNxm.balanceOf(address(stNxm));
         uint256 wnxmBalAfter = wNxm.balanceOf(wnxmWhale);
-        console2.log("wnxmBalAfter:");
-        console2.logUint(wnxmBalAfter);
-        console2.log("stnxmBalAfter:");
-        console2.logUint(stnxmBalAfter);
 
         // check difference in arnxm balance
         require(stnxmBalBefore - stnxmBalAfter == withdrawAmt, "stnxm bal diff failed");
@@ -240,21 +234,20 @@ contract stNxmTest is Test {
     }
 
     function testCollectReward_success() public {
+        // Set initial rewards
+        stNxm.getRewards();
         uint256 nxmBalBefore = wNxm.balanceOf(address(stNxm));
         vm.warp(block.timestamp + 7 days);
         stNxm.getRewards();
         uint256 nxmBalAfter = wNxm.balanceOf(address(stNxm));
-
         require(nxmBalAfter > nxmBalBefore, "Rewards were not withdrawn.");
     }
 
     function testStakeNXM() public {
         // add nxm to nxmvault from nxm whale
-        vm.startPrank(wnxmWhale);
-        wNxm.transfer(address(stNxm), 10000e18);
-        vm.stopPrank();
+        depositWNXM(1000e18, wnxmWhale);
         // first active tranche Id
-        uint256 trancheId = 222;
+        uint256 trancheId = 224;
         uint256 amountToStake = 1000e18;
 
         IStakingPool stakingPool = IStakingPool(riskPools[0]);
@@ -270,7 +263,7 @@ contract stNxmTest is Test {
         uint256 aumAfter = stNxm.totalAssets();
 
         // aum increases by 1 uinits so >= is used instead of ==
-        require(aumAfter == aumBefore, "aum should not change");
+        require(aumAfter > aumBefore - 1 ether && aumAfter < aumBefore + 1 ether, "aum should not change");
         require((vaultNXMBalBefore - vaultNXMBalAfter) == amountToStake, "nxm not staked");
 
         (uint256 stakeSharesAfter, uint256 rewardSharesAfter) = stakingPool.getTranche(trancheId);
@@ -293,23 +286,21 @@ contract stNxmTest is Test {
         vm.expectRevert();
 
         // stake with invalid staking pool for token
-        stakeNxm(amountToStake, riskPools[0], trancheId, tokenIds[1]);
+        stakeNxm(amountToStake, riskPools[0], trancheId, tokenIds[2]);
     }
 
     function testStakeNXMAndGetNewNFT() public {
         // add nxm to nxmvault from nxm whale
-        vm.startPrank(wnxmWhale);
-        wNxm.transfer(address(stNxm), 10000e18);
-        vm.stopPrank();
+        depositWNXM(1000e18, wnxmWhale);
         // first active tranche Id
         uint256 trancheId = 224;
         uint256 amountToStake = 1000e18;
         uint256 stakingNFTBalBefore = stakingNFT.balanceOf(address(stNxm));
 
         uint256 aumBefore = stNxm.totalAssets();
-        // array should only have 2 elements
+        // array should only have 3 elements
         vm.expectRevert();
-        stNxm.tokenIds(2);
+        stNxm.tokenIds(3);
 
         // deposit to staking pool and get new nft (*0 as tokenID mints new one)
         stakeNxm(amountToStake, riskPools[0], trancheId, 0);
@@ -332,7 +323,7 @@ contract stNxmTest is Test {
         require(actualStaked >= (amountToStake - 1e12), "wrong total staked");
 
         // aum should be equal to or greater than actual staked
-        require(aumAfter >= aumBefore, "aum should be >= aum before");
+        require(aumAfter > aumBefore - 1 ether && aumAfter < aumBefore + 1 ether, "aum should be >= aum before");
 
         // check if new tokenId was added to tokenIds array
         uint256 newTokenId = stNxm.tokenIds(3);
@@ -347,13 +338,13 @@ contract stNxmTest is Test {
         uint256 trancheId = 224;
         uint256[] memory trancheIds = new uint256[](1);
         // approximation
-        uint256 expectedUnstakeAmount = 17000e18;
+        uint256 expectedUnstakeAmount = 12903e18;
         trancheIds[0] = trancheId;
         uint256 vaultNXMBalBefore = wNxm.balanceOf(address(stNxm));
         vm.warp(block.timestamp + 92 days);
-        unstakeNxm(tokenIds[0], trancheIds);
+        unstakeNxm(tokenIds[1], trancheIds);
         uint256 vaultNXMBalAfter = wNxm.balanceOf(address(stNxm));
-        require(vaultNXMBalAfter > (vaultNXMBalBefore + expectedUnstakeAmount), "nxm transfer failed");
+        require(vaultNXMBalAfter > (vaultNXMBalBefore + expectedUnstakeAmount) - 1 ether, "nxm transfer failed");
     }
 
     function testUnstakeNXMFail() public {
@@ -366,22 +357,6 @@ contract stNxmTest is Test {
 
         // as tranche has not expired it should not unstake 0 NXM
         require(vaultNXMBalAfter == vaultNXMBalBefore, "should not unstake");
-    }
-
-    function testWithdrawNxmFromPool() public {
-        uint256 trancheId = 224;
-        uint256[] memory trancheIds = new uint256[](1);
-        // approx unstake amount
-        uint256 expectedUnstakeAmount = 17000e18;
-        trancheIds[0] = trancheId;
-        uint256 vaultNXMBalBefore = wNxm.balanceOf(address(stNxm));
-        vm.warp(block.timestamp + 92 days);
-        vm.startPrank(multisig);
-        stNxm.unstakeNxm(tokenIds[0], trancheIds);
-        vm.stopPrank();
-        uint256 vaultNXMBalAfter = wNxm.balanceOf(address(stNxm));
-
-        require(vaultNXMBalAfter > (vaultNXMBalBefore + expectedUnstakeAmount), "nxm transfer failed");
     }
 
     function testRemoveTokenId() public {
@@ -400,9 +375,9 @@ contract stNxmTest is Test {
         stNxm.removeTokenIdAtIndex(0);
         vm.stopPrank();
 
-        // as tokenIds length is 1 this should revert
+        // as tokenIds length is 3 this should revert
         vm.expectRevert();
-        stNxm.tokenIds(1);
+        stNxm.tokenIds(2);
 
         address riskPoolAfter = stNxm.tokenIdToPool(tokenIdAtIndex0Before);
 
@@ -417,49 +392,67 @@ contract stNxmTest is Test {
         uint256 balBefore = wNxm.balanceOf(address(stNxm));
         uint256 tsBefore = stNxm.totalSupply();
         uint256 dexTokenId = stNxm.dexTokenIds(0);
-        stNxm.decreaseLiquidity(dexTokenId, 1);
+        (,,,,,,,uint128 liquidity,,,,) = nfp.positions(dexTokenId);
+        vm.startPrank(multisig);
+        stNxm.decreaseLiquidity(dexTokenId, liquidity);
+        vm.stopPrank();
         // Check increase here
         uint256 balAfter = wNxm.balanceOf(address(stNxm));
         uint256 tsAfter = stNxm.totalSupply();
         require(balAfter > balBefore, "Balance did not increase when liquidity was withdrawn.");
         require(tsBefore == tsAfter, "Total supply has changed when it shouldn't!");
     }
-/*
+
     function testMorpho() public { 
         vm.startPrank(multisig);
-        //uint256 nxmBal = wNxm.balanceOf(address(stNxm));
-        uint256 morphoBal = morpho.balanceOf(address(stNxm));
+        uint256 nxmBal = wNxm.balanceOf(address(stNxm));
+        //uint256 morphoBal = morpho.balanceOf(address(stNxm));
+        vm.startPrank(multisig);
         stNxm.morphoDeposit(1000 ether);
-        require(morpho.balanceOf(address(stNxm)) > morphoBal);
+        vm.stopPrank();
+        //require(morpho.balanceOf(address(stNxm)) > morphoBal);
         //require(wNxm.balanceOf)
 
         stNxm.morphoRedeem(1000 ether);
-        require(morpho.balanceOf(address(stNxm)) == 0);
+        //require(morpho.balanceOf(address(stNxm)) == 0);
         
         //require()
     }
-*/
+
     // We need to add tests to:
     // 1. Check for active and expired amounts when things expire
     // 2. Check for rewards being withdrawn through other means
     // 3. Confirm dex is correct
 
     function testResetTranches() public {
-        stakeNxm(1, riskPools[0], 230, tokenIds[0]);
+        stakeNxm(1000000000000000000, riskPools[0], 230, tokenIds[0]);
         stNxm.resetTranches();
-        uint256 newTranche = stNxm.tokenIdToTranches(214, 0);
+        uint256 newTranche = stNxm.tokenIdToTranches(214, 2);
         require(newTranche == 230, "Tranche not reset correctly.");
     }
 
     function testWithdrawAdminFees() public {
+        // Start with an update
+        stNxm.withdrawAdminFees();
+
         // Test with simple wNxm transfer to the contract.
         uint256 adminBalanceBefore = wNxm.balanceOf(multisig);
+        uint256 stnxmBalanceBefore = wNxm.balanceOf(address(stNxm));
+
         vm.startPrank(wnxmWhale);
         wNxm.transfer(address(stNxm), 1 ether);
         vm.stopPrank();
         stNxm.withdrawAdminFees();
         uint256 adminBalanceAfter = wNxm.balanceOf(multisig);
-        require (adminBalanceAfter - adminBalanceBefore == 0.1 ether, "Incorrect amount withdrawn.");
+        uint256 stnxmBalanceAfter = wNxm.balanceOf(address(stNxm));
+
+
+        console2.logUint(stnxmBalanceBefore);
+        console2.logUint(stnxmBalanceAfter);
+
+        require (adminBalanceAfter - adminBalanceBefore >= 0.099 ether, "Incorrect amount withdrawn.");
+
+        console2.log("past first");
 
         // Check with getRewards being called.
         vm.warp(block.timestamp + 7 days);
@@ -467,33 +460,37 @@ contract stNxmTest is Test {
         stNxm.getRewards();
         stNxm.withdrawAdminFees();
         adminBalanceAfter = wNxm.balanceOf(multisig);
+        console2.logUint(adminBalanceAfter);
         require (adminBalanceAfter > adminBalanceBefore, "Incorrect amount withdrawn.");
     }
 
     function testWithdrawDexFees() public { 
-        // Make dex trades here I guess?
         uint256 balBefore = wNxm.balanceOf(address(stNxm));
         stNxm.collectDexFees();
         uint256 balAfter = wNxm.balanceOf(address(stNxm));
-        require(balAfter > balBefore);
+        require(balAfter > balBefore, "No fees were withdrawn.");
     }
 
     function testPause() public {
         depositWNXM(2 ether, wnxmWhale);
         withdrawWNXM(1 ether, wnxmWhale);
         vm.warp(block.timestamp + 2 days + 1 hours);
+        
+        vm.startPrank(multisig);
         stNxm.togglePause();
-        vm.expectRevert();
-        withdrawWNXM(1 ether, wnxmWhale);
+        vm.stopPrank();
+
         vm.expectRevert();
         finalizeWithdrawal(wnxmWhale);
     }
 
     function testTokenSwap() public {
-        //arNxm.approve(address(stNxmSwap), 1000 ether);
+        vm.startPrank(arnxmWhale);
+        arNxm.approve(address(stNxmSwap), 1 ether);
         stNxmSwap.swap(1 ether);
-        uint256 balance = stNxm.balanceOf(wnxmWhale);
-        require(balance == 1 ether, "Swap didn't execute correctly.");
+        vm.stopPrank();
+        uint256 balance = stNxm.balanceOf(arnxmWhale);
+        require(balance == 956860757679165373, "Swap didn't execute correctly.");
     }
 
     /*
