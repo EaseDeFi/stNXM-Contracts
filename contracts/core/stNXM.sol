@@ -77,7 +77,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 /**************************************************************** Main ****************************************************************/
 /******************************************************************************************************************************************/
 
-    function initialize(address _nfp, address _wNxm, address _nxm, address _nxmMaster, uint256 _mintAmount)
+    function initialize(address _beneficiary, address _nfp, address _wNxm, address _nxm, address _nxmMaster, uint256 _mintAmount)
         public
         initializer
     {
@@ -93,7 +93,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         nxmMaster = INxmMaster(_nxmMaster);
         nfp = INonfungiblePositionManager(_nfp);
         adminPercent = 100;
-        beneficiary = msg.sender;
+        beneficiary = _beneficiary;
         withdrawDelay = 2 days;
 
         nxm.approve(address(wNxm), type(uint256).max);
@@ -152,6 +152,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
         // This only happens without another update if rewards have entered the contract.
         if (balance > lastBalance && lastStaked <= staked) adminFees += (balance - lastBalance) * adminPercent / DIVISOR;
+
         _;
         
         lastBalance = wNxm.balanceOf(address(this));
@@ -297,7 +298,6 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      */
     function unstakeNxm(uint256 _tokenId, uint256[] memory _trancheIds) external update {
         uint256 withdrawn = _withdrawFromPool(tokenIdToPool[_tokenId], _tokenId, true, false, _trancheIds);
-        IWNXM(address(wNxm)).wrap(withdrawn);
     }
 
     /**
@@ -465,7 +465,6 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
                 uint256 tranche = trancheIds[j];
                 (, , uint256 stakeShares, ) = IStakingPool(pool).getDeposit(token, tranche);
 
-                // Tranche has been expired so we need to do different calculations here.
                 if (tranche < currentTranche) {
                     (, uint256 amountAtExpiry, uint256 sharesAtExpiry) = IStakingPool(pool).getExpiredTranche(tranche);
                     // Pool has been properly expired here.

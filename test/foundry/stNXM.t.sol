@@ -15,6 +15,7 @@ import "../../contracts/interfaces/IMorphoFactory.sol";
 import "../../contracts/interfaces/IUniswapFactory.sol";
 import "../../contracts/interfaces/IWNXM.sol";
 import "../../contracts/libraries/v3-core/IUniswapV3Pool.sol";
+import "../../contracts/libraries/v3-core/ISwapRouter.sol";
 
 // import new contracts
 import {StNXM} from "../../contracts/core/stNXM.sol";
@@ -34,6 +35,7 @@ contract stNxmTest is Test {
     IStakingNFT stakingNFT = IStakingNFT(0xcafea508a477D94c502c253A58239fb8F948e97f);
     INonfungiblePositionManager nfp = INonfungiblePositionManager(0xC36442b4a4522E871399CD717aBDD847Ab11FE88);
     IMorphoBase morphoFactory = IMorphoBase(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
+    ISwapRouter swapRouter = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
 
     IMorphoBase morpho;
     TokenSwap stNxmSwap;
@@ -60,7 +62,7 @@ contract stNxmTest is Test {
         stNxm = new StNXM();
 
         // 100k ether is mint amount and will be equal to arNXM total assets.
-        stNxm.initialize(address(nfp), address(wNxm), nxm, nxmMaster, 100000 ether);
+        stNxm.initialize(multisig, address(nfp), address(wNxm), nxm, nxmMaster, 100000 ether);
 
         // Deploy and fill swap here.
         stNxmSwap = new TokenSwap(address(stNxm), address(arNxm));
@@ -178,7 +180,7 @@ contract stNxmTest is Test {
         uint256 startStake = stNxm.stakedNxm();
         uint256 firstUnstaked = stNxm.unstakedNxm();
         vm.warp(block.timestamp + 100 days);
-        //IStakingPool(riskPools[0]).processExpirations(true);
+        IStakingPool(riskPools[0]).processExpirations(true);
         uint256 endStake = stNxm.stakedNxm();
         uint256 unstaked = stNxm.unstakedNxm();
         require(startStake == endStake, "Ending stake is not equal to starting stake.");
@@ -419,11 +421,6 @@ contract stNxmTest is Test {
         //require()
     }
 
-    // We need to add tests to:
-    // 1. Check for active and expired amounts when things expire
-    // 2. Check for rewards being withdrawn through other means
-    // 3. Confirm dex is correct
-
     function testResetTranches() public {
         stakeNxm(1000000000000000000, riskPools[0], 230, tokenIds[0]);
         stNxm.resetTranches();
@@ -437,22 +434,13 @@ contract stNxmTest is Test {
 
         // Test with simple wNxm transfer to the contract.
         uint256 adminBalanceBefore = wNxm.balanceOf(multisig);
-        uint256 stnxmBalanceBefore = wNxm.balanceOf(address(stNxm));
-
         vm.startPrank(wnxmWhale);
         wNxm.transfer(address(stNxm), 1 ether);
         vm.stopPrank();
         stNxm.withdrawAdminFees();
         uint256 adminBalanceAfter = wNxm.balanceOf(multisig);
-        uint256 stnxmBalanceAfter = wNxm.balanceOf(address(stNxm));
 
-
-        console2.logUint(stnxmBalanceBefore);
-        console2.logUint(stnxmBalanceAfter);
-
-        require (adminBalanceAfter - adminBalanceBefore >= 0.099 ether, "Incorrect amount withdrawn.");
-
-        console2.log("past first");
+        require (adminBalanceAfter - adminBalanceBefore > 0.099 ether, "Incorrect amount withdrawn.");
 
         // Check with getRewards being called.
         vm.warp(block.timestamp + 7 days);
@@ -460,11 +448,17 @@ contract stNxmTest is Test {
         stNxm.getRewards();
         stNxm.withdrawAdminFees();
         adminBalanceAfter = wNxm.balanceOf(multisig);
-        console2.logUint(adminBalanceAfter);
-        require (adminBalanceAfter > adminBalanceBefore, "Incorrect amount withdrawn.");
+        require (adminBalanceAfter > adminBalanceBefore, "Incorrect amount withdrawn 2.");
     }
 
     function testWithdrawDexFees() public { 
+        // Make a random uniswap exchange so there are fees in the pool.
+        vm.startPrank(wnxmWhale);
+        wNxm.approve(address(swapRouter), 1 ether);
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams(address(wNxm), address(stNxm), 500, wnxmWhale, 1000000000000000, 1 ether, 0, 0);
+        swapRouter.exactInputSingle(params);
+        vm.stopPrank();
+
         uint256 balBefore = wNxm.balanceOf(address(stNxm));
         stNxm.collectDexFees();
         uint256 balAfter = wNxm.balanceOf(address(stNxm));
