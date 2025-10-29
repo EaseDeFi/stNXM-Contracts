@@ -73,6 +73,12 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 /**************************************************************** Main ****************************************************************/
 /******************************************************************************************************************************************/
 
+    /**
+     * @notice Main initializer for the contract.
+     * @param _beneficiary Address that will receive admin fees.
+     * @param _mintAmount The initial amount to mint that will be put into the arNXM/stNXM token swap contract.
+     */
+
     function initialize(address _beneficiary, uint256 _mintAmount)
         public
         initializer
@@ -91,6 +97,12 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         nxm.approve(address(wNxm), type(uint256).max);
     }
 
+    /**
+     * @notice Secondary initializer where addresses are set that can't be set in the first yet.
+     * @param _dex The address of the Uni V3 wNXM/stNXM pool.
+     * @param _morphoOracle The stNXM oracle contract that returns twap price from the dex.
+     * @param _dexDeposit The amount of funds to initially deposit into the dex (in wNXM, matched with virtual stNXM).
+     */
     function initializeExternals(address _dex, address _morphoOracle, uint256 _dexDeposit) external {
         require(msg.sender == owner() && address(dex) == address(0), "Only owner may call, and only call once.");
 
@@ -131,8 +143,10 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         lastStaked = stakedNxm();
     }
 
-    // Update admin fees based on any changes that occurred between last deposit and withdrawal.
-    // This is to be used on functions that have balance changes unrelated to rewards within them such as deposit/withdraw.
+    /**
+     * @notice Update admin fees based on any changes that occurred between last deposit and withdrawal.
+     * @dev This is to be used on functions that have balance changes unrelated to rewards within them such as deposit/withdraw.
+     */
     modifier update {
         // Wrap NXM in case rewards were sent to the contract without us knowing
         uint256 nxmBalance = nxm.balanceOf(address(this));
@@ -150,6 +164,9 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         lastStaked = stakedNxm();
     }
 
+    /**
+     * @notice Ensure contract is not currently paused.
+     */
     modifier notPaused {
         require(!paused, "Contract is currently paused.");
         _;
@@ -207,7 +224,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
     /**
      * @notice Finalize a withdraw request after the withdraw delay ends.
-     * @dev Only one withdraw request can be active at a time for a user so this needs no params.
+     * @dev Only one withdraw request can be active at a time for a user so this needs no extra params.
+     * @param _user The address to finalize withdrawal for.
      */
     function withdrawFinalize(address _user) external notPaused update {
         //address user = msg.sender;
@@ -424,8 +442,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      *       This also does not always account for exact admin fees, so be wary of that.
      */
     function totalAssets() public view override returns (uint256) {
-        // Add staked NXM, NXM in the contract, NXM in the dex and Morpho, subtract the recent chunk of reward from Nexus (because it's wrongfully included in balance),
-        // add back in the amount that has been distributed so far, subtract the total amount that's waiting to be withdrawn.
+        // Add staked NXM, wNXM in the contract, wNXM in the dex and Morpho, subtract the admin fees.
         return stakedNxm() + unstakedNxm() - adminFees;
     }
 
@@ -494,6 +511,9 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         }
     }
 
+    /**
+     * @notice Find the balance (in wNXM) that the vault is lending out on Morpho.
+     */
     function morphoBalance() public view returns (uint256 assets) {
         Position memory pos = morpho.position(morphoId, address(this));
         Market memory market = morpho.market(morphoId);
@@ -547,6 +567,11 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
     /**
      * @notice Withdraw any Nxm we can from the staking pool.
+     * @param _poolAddress Address to withdraw from.
+     * @param _tokenId The token to withdraw rewards from or unstake.
+     * @param _withdrawStake Should we withdraw stake that is past its expiration?
+     * @param _withdrawRewards Should we withdraw rewards gotten from cover being sold?
+     * @param _trancheIds Tranches to withdraw stake and/or rewards from.
      * @return amount The amount of funds that are being withdrawn.
      */
     function _withdrawFromPool(
@@ -565,7 +590,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @notice Used to mint a new Uni V3 position using funds from the stNXM pool. Only used once.
      * @dev When minting, wNXM is added to the pool from here but stNXM is minted directly to the pool.
      *      Infinite amount of stNXM can be minted, only wNXM held by the contract can be added.
-     * @param amountToAdd wNXM amount to add in the new position.
+     * @param amountToAdd wNXM and stNXM amount to add in the new position.
      * @param _tickLower Low tick of the new position.
      * @param _tickUpper High tick of the new position.
      */
@@ -643,16 +668,14 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     /**
      * @dev Change beneficiary of the administration funds.
      * @param _newBeneficiary Address of the new beneficiary to receive funds.
-     *
      */
     function changeBeneficiary(address _newBeneficiary) external onlyOwner {
         beneficiary = _newBeneficiary;
     }
 
     /**
-     * @dev remove token id from tokenIds array
+     * @dev Remove token id from tokenIds array
      * @param _index Index of the tokenId to remove
-     *
      */
     function removeTokenIdAtIndex(uint256 _index) external onlyOwner {
         uint256 tokenId = tokenIds[_index];
@@ -663,7 +686,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     }
 
     /**
-     * @dev rescue tokens locked in contract
+     * @dev Rescue tokens locked in contract
      * @param token address of token to withdraw
      */
     function rescueToken(address token) external onlyOwner {
