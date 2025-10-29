@@ -35,7 +35,7 @@ contract StOracle {
         require(sanePrice(twap), "Price has been manipulated too high.");
 
         // Scale to meet Morpho standards
-        twap = twap * 1e36;
+        twap = twap * 1e18;
     }
 
     // Checks if the price isn't too high.

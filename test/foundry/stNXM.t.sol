@@ -34,10 +34,9 @@ contract stNxmTest is Test {
 
     IStakingNFT stakingNFT = IStakingNFT(0xcafea508a477D94c502c253A58239fb8F948e97f);
     INonfungiblePositionManager nfp = INonfungiblePositionManager(0xC36442b4a4522E871399CD717aBDD847Ab11FE88);
-    IMorpho morphoFactory = IMorpho(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
+    IMorpho morpho = IMorpho(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
     ISwapRouter swapRouter = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
 
-    IMorpho morpho;
     TokenSwap stNxmSwap;
     StOracle stNxmOracle;
     IUniswapV3Pool dex;
@@ -62,7 +61,7 @@ contract stNxmTest is Test {
         stNxm = new StNXM();
 
         // 100k ether is mint amount and will be equal to arNXM total assets.
-        stNxm.initialize(multisig, address(nfp), address(wNxm), nxm, nxmMaster, 100000 ether);
+        stNxm.initialize(multisig, 100000 ether);
 
         // Deploy and fill swap here.
         stNxmSwap = new TokenSwap(address(stNxm), address(arNxm));
@@ -77,12 +76,10 @@ contract stNxmTest is Test {
         stNxmOracle = new StOracle(address(dex), address(wNxm), address(stNxm));
 
         // Create Morpho pool here
-        morphoFactory.createMarket(MarketParams(address(wNxm), address(stNxm), address(stNxmOracle), irm, 625000000000000000));
-        morpho = morphoFactory;
+        morpho.createMarket(MarketParams(address(wNxm), address(stNxm), address(stNxmOracle), irm, 625000000000000000));
 
         // Finalize NFT transfers
         vm.startPrank(arNxmVault);
-
         stakingNFT.transferFrom(arNxmVault, address(stNxm), 214);
         stakingNFT.transferFrom(arNxmVault, address(stNxm), 215);
         stakingNFT.transferFrom(arNxmVault, address(stNxm), 242);
@@ -96,11 +93,10 @@ contract stNxmTest is Test {
 
         // We need to transfer arNXM membership to stNXM
         INxmMaster(0x055CC48f7968FD8640EF140610dd4038e1b03926).switchMembership(address(stNxm));
-
         vm.stopPrank();
 
-        // Finalize intiialization with dex info.
-        stNxm.initializeTwo(address(dex), address(morphoFactory), address(stNxmOracle), 1000 ether);
+        // Finalize initialization with dex info.
+        stNxm.initializeExternals(address(dex), address(stNxmOracle), 1000 ether);
 
         // Supply wNxm using stNxm
         stNxm.morphoDeposit(1000 ether);
@@ -165,7 +161,7 @@ contract stNxmTest is Test {
         //require(stNxm.tokenIdToPool(4) == riskPools[1]);
     }
 
-    function testAum() public {
+    function testAum() public view {
         uint256 aum = stNxm.totalAssets();
         uint256 arnxmAum = 113776349578321093826437;
         require(aum < arnxmAum + 50 ether && aum > arnxmAum - 50 ether, "Incorrect Aum");
@@ -403,7 +399,6 @@ contract stNxmTest is Test {
         MarketParams memory marketParams = MarketParams(address(wNxm), address(stNxm), address(stNxmOracle), irm, 625000000000000000);
         Id morphoId = Id.wrap(keccak256(abi.encode(marketParams)));
 
-        Market memory market = morpho.market(morphoId);
         Position memory pos = morpho.position(morphoId, address(stNxm));
 
         vm.startPrank(multisig);
@@ -418,7 +413,7 @@ contract stNxmTest is Test {
         vm.stopPrank();
 
         pos = morpho.position(morphoId, address(stNxm));
-        
+
         require(pos.supplyShares == 0, "New assets did not return to normal.");
     }
 

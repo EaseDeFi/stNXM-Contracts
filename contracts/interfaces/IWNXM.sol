@@ -6,5 +6,5 @@ interface IWNXM {
     function unwrap(uint256 _amount) external;
     function transfer(address to, uint256 amount) external returns (bool);
     function approve(address spender, uint256 amount) external returns (bool);
-    function balanceOf(address user) external returns (uint256);
+    function balanceOf(address user) external view returns (uint256);
 }
