@@ -9,9 +9,9 @@ contract DeployVault is Script {
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
-        address deployer = vm.addr(deployerPrivateKey);
-        arNXMVault arNXMVault = new arNXMVault();
-        console2.log("arNXMVault: ", address(arNXMVault));
+        //address deployer = vm.addr(deployerPrivateKey);
+        //arNXMVault arNXMVault = new arNXMVault();
+        //console2.log("arNXMVault: ", address(arNXMVault));
         vm.stopBroadcast();
     }
 }
