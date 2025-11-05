@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 
 import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
-import {arNXMVault} from "contracts/core/arNXMVault.sol";
+//import {arNXMVault} from "contracts/core/arNXMVault.sol";
 
 contract DeployVault is Script {
     function run() public {

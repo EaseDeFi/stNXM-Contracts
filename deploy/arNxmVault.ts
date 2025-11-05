@@ -1,4 +1,4 @@
-import "@nomiclabs/hardhat-ethers";
+/*import "@nomiclabs/hardhat-ethers";
 import hre, { ethers } from "hardhat";
 import "hardhat-deploy";
 import { DeployFunction } from "hardhat-deploy/types";
@@ -72,3 +72,4 @@ export default deployArNxmImpl;
 if (typeof require !== "undefined" && require.main === module) {
   deployArNxmImpl(hre);
 }
+*/

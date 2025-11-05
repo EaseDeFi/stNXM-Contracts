@@ -424,6 +424,16 @@ contract stNxmTest is Test {
         require(newTranche == 230, "Tranche not reset correctly.");
     }
 
+    function testTrancheAndPoolAllocations() public view {
+        (uint256[] memory pools, uint256[] memory tokenAmounts, uint256[8] memory trancheAmounts) = stNxm.trancheAndPoolAllocations();
+        require(pools[0] == 22 && pools[1] == 22 && pools[2] == 8, "Pool IDs do not match.");
+        uint256 stakedNxm = stNxm.stakedNxm();
+        uint256 testedStake = tokenAmounts[0] + tokenAmounts[1] + tokenAmounts[2];
+        uint256 testedTranche = trancheAmounts[0] + trancheAmounts[1] + trancheAmounts[2] + trancheAmounts[3] + trancheAmounts[4] + trancheAmounts[5] + trancheAmounts[6] + trancheAmounts[7];
+        require(testedStake == stakedNxm, "Staked amounts don't match.");
+        require(testedTranche == stakedNxm, "Tranche amounts don't match.");
+    }
+
     function testWithdrawAdminFees() public {
         // Start with an update
         stNxm.withdrawAdminFees();

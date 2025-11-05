@@ -1,6 +1,6 @@
 pragma solidity ^0.8.26;
 
-import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol';
+import '../../lib/openzeppelin-contracts/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol';
 import '../libraries/v3-core/PositionValue.sol';
 
 import "../general/Ownable.sol";
@@ -128,13 +128,14 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         for (uint256 i = 0; i < tokenIds.length; i++) {
             uint256 id = tokenIds[i];
             address _stakingPool = tokenIdToPool[id];
-            delete tokenIdToTranches[id];
+            uint activeStake = IStakingPool(_stakingPool).getActiveStake();
+            uint stakeSharesSupply = IStakingPool(_stakingPool).getStakeSharesSupply();
 
             for (uint256 tranche = firstTranche; tranche < firstTranche + 8; tranche++) {
                 (,,uint256 trancheDeposit,) = IStakingPool(_stakingPool).getDeposit(id, tranche);
                 if (trancheDeposit > 0) {
                     tokenIdToTranches[id].push(tranche);
-                    lastStaked += trancheDeposit;
+                    lastStaked += activeStake * trancheDeposit / stakeSharesSupply;
                 }
             }
         }
@@ -533,6 +534,32 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         uint256 assetBalance = _convertToShares(wNxm.balanceOf(address(this)), Math.Rounding.Floor);
         uint256 ownerBalance = balanceOf(owner);
         return assetBalance > ownerBalance ? ownerBalance : assetBalance;
+    }
+
+    /// Used by the frontend to see which allocations we have.
+    /// All we really need to return is amounts from each tranche and separately the amount in each pool
+    function trancheAndPoolAllocations() external view returns (uint256[] memory pools, uint256[] memory tokenAmounts, uint256[8] memory trancheAmounts) {
+        pools = new uint256[](tokenIds.length);
+        tokenAmounts = new uint256[](tokenIds.length);
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 tokenId = tokenIds[i];
+
+            // Pool ID is easier for the frontend since the API uses ID directly
+            address stakingPool = tokenIdToPool[tokenId];
+            uint256 poolId = IStakingPool(stakingPool).getPoolId();
+            uint activeStake = IStakingPool(stakingPool).getActiveStake();
+            uint stakeSharesSupply = IStakingPool(stakingPool).getStakeSharesSupply();
+            pools[i] = poolId;
+
+            uint256 currentTranche = block.timestamp / 91 days;
+            for (uint256 j = 0; j < 8; j++) {
+                (,,uint256 trancheDeposit,) = IStakingPool(stakingPool).getDeposit(tokenId, currentTranche + j);
+                uint256 nxmStake = activeStake * trancheDeposit / stakeSharesSupply;
+                trancheAmounts[j] += nxmStake;
+                tokenAmounts[i] += nxmStake;
+            }
+        }
     }
 
 /******************************************************************************************************************************************/
