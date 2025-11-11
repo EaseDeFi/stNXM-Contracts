@@ -1,4 +1,4 @@
-# 🏦 stNXM Architecture (README Edition)
+# 🏦 stNXM Architecture
 
 This document explains how **stNXM** (Staked NXM) works under the hood: components, flows, accounting, delays, risks, and the key on-chain APIs.
 
