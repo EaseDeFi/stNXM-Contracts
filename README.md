@@ -1,4 +1,3 @@
-````markdown
 # 🧭 stNXM Architecture (README Edition)
 
 This document explains how **stNXM** works under the hood: components, flows, accounting, delays, risks, and the key on-chain APIs.
@@ -26,26 +25,6 @@ stNXM is an **ERC4626Upgradeable** vault accepting **wNXM** and minting **stNXM*
 - **Morpho Blue** supply position (wNXM lent, stNXM as collateral).
 
 Rewards from Nexus + Uniswap + Morpho are **auto-compounded** into the vault. Withdrawals are **delayed** and may be **paused** during claim events.
-
-```mermaid
-flowchart LR
-    User((User))
-    subgraph Vault[stNXM Vault (ERC4626)]
-      D[wNXM balance]
-      S[Nexus Staking (NFTs, tranches)]
-      U[Uniswap V3 LP stNXM/wNXM]
-      M[Morpho Blue (supply wNXM)]
-    end
-
-    User -- deposit wNXM --> Vault
-    Vault --> S
-    Vault --> U
-    Vault --> M
-    S -- rewards --> D
-    U -- fees --> D
-    M -- yield --> D
-    D -- redemption --> User
-````
 
 ---
 
@@ -118,21 +97,13 @@ sequenceDiagram
 
 ### C. Redemption with Delay
 
-```mermaid
-sequenceDiagram
-  autonumber
-  participant U as User
-  participant V as Vault
-  U->>V: withdraw()/redeem() → _withdraw
-  Note over V: Records WithdrawalRequest{requestTime, assets, shares}<br/>increments `pending` shares
-  V-->>U: Emits WithdrawRequested(..., withdrawTime=requestTime+withdrawDelay)
-  U->>V: withdrawFinalize(user) (after delay, within +1 day)
-  alt On time window
-    V->>U: burns shares; transfers wNXM
-  else Window missed
-    V->>U: returns shares; no payout
-  end
-```
+* `withdraw/redeem`:
+
+  * Initiates a 2 day delay until finalize. Shares are transferred to the contract but not burnt.
+  * stNXM continues to adjust to changes in the underlying assets (if rewards accrue during the delay, they're received).
+  * Ater 2 days, the user has 1 day to finalize otherwise the withdraw fails (to avoid abuse by keeping a withdrawal pending until a hack occurs).
+  * Shares are burnt, assets are sent to the user.  
+* The most important things for safety in redemptions is that a pending withdrawal is affected by slashing (i.e. we cannot decide on value immediately) and that a withdrawal cannot be maintained in a pending state and immediately withdrawn. Both of these are to avoid users looking to abuse the slashing mechanic.
 
 ---
 
@@ -155,23 +126,6 @@ sequenceDiagram
 
 * `notPaused` modifier blocks `_withdraw` and `withdrawFinalize` when `paused = true`.
 * `togglePause()` is **owner-only**; intended for Nexus/DAO multisig during coverage events.
-
-```mermaid
-stateDiagram-v2
-    [*] --> Active
-    Active --> Paused: togglePause()
-    Paused --> Active: togglePause()
-
-    state Active {
-        [*] --> Idle
-        Idle --> AwaitingDelay: _withdraw()
-        AwaitingDelay --> Finalizable: time >= requestTime+withdrawDelay
-        Finalizable --> Redeemed: withdrawFinalize() in-window
-        Finalizable --> RevertToShares: missed 24h window
-        Redeemed --> Idle
-        RevertToShares --> Idle
-    }
-```
 
 ---
 
@@ -314,11 +268,7 @@ changeBeneficiary(address)
 **TL;DR**
 stNXM tokenizes Nexus underwriting into a **liquid ERC4626**: capital flows to Nexus pools, Uniswap LP, and Morpho; rewards compound; withdrawals are delayed & pausable to handle claims — with robust accounting to keep share price honest.
 
-```
-
-# <h1 align="center"> Hardhat-Foundry Template </h1>
-
-**Template repository for Hardhat and Foundry**
+# <h1 align="center"> Hardhat-Foundry Instructions </h1>
 
 ### Getting Started
 

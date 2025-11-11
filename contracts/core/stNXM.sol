@@ -740,7 +740,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @param token address of token to withdraw
      */
     function rescueToken(address token) external onlyOwner {
-        require(token != address(wNxm) && token != address(this), "Cannot rescue NXM or stNXM.");
+        require(token != address(wNxm) && token != address(nxm) && token != address(this), "Cannot rescue wNXM, NXM or stNXM.");
         uint256 balance = IERC20(token).balanceOf(address(this));
         IERC20(token).safeTransfer(msg.sender, balance);
     }
