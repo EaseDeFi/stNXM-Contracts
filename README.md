@@ -1,6 +1,6 @@
-# 🧭 stNXM Architecture (README Edition)
+# 🏦 stNXM Architecture (README Edition)
 
-This document explains how **stNXM** works under the hood: components, flows, accounting, delays, risks, and the key on-chain APIs.
+This document explains how **stNXM** (Staked NXM) works under the hood: components, flows, accounting, delays, risks, and the key on-chain APIs.
 
 - [High-Level Design](#high-level-design)
 - [Core Components](#core-components)
@@ -20,9 +20,9 @@ This document explains how **stNXM** works under the hood: components, flows, ac
 
 stNXM is an **ERC4626Upgradeable** vault accepting **wNXM** and minting **stNXM** shares. Capital is allocated across:
 
-- **Nexus Mutual staking pools** (multiple NFTs across tranches),
-- **Uniswap V3 LP** in the **stNXM/wNXM** pool,
-- **Morpho Blue** supply position (wNXM lent, stNXM as collateral).
+- **Nexus Mutual staking pools** (multiple NFTs across tranches), the primary purpose and majority investment of stNXM.
+- **Uniswap V3 LP** in the **stNXM/wNXM** pool, which is only used for a hot start so lending can be immediately used.
+- **Morpho Blue** supply position (wNXM lent, stNXM as collateral), which is also primarily for a hot start.
 
 Rewards from Nexus + Uniswap + Morpho are **auto-compounded** into the vault. Withdrawals are **delayed** and may be **paused** during claim events.
 
