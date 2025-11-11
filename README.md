@@ -1,47 +1,3 @@
-# <h1 align="center"> Hardhat-Foundry Template </h1>
-
-**Template repository for Hardhat and Foundry**
-
-### Getting Started
-
-- Use Foundry:
-
-```bash
-forge install
-forge test
-```
-
-- Use Hardhat:
-
-```bash
-npm install
-npx hardhat test
-```
-
-### Features
-
-- Write / run tests with either Hardhat or Foundry or Both:
-
-```bash
-forge test
-# or
-npx hardhat test
-# or
-npm test (to run both)
-```
-
-- Install libraries with Foundry which work with Hardhat.
-
-```bash
-forge install transmissions11/solmate # Already in this repo, just an example
-# and
-forge remappings > remappings.txt # allows resolve libraries installed with forge or npm
-```
-
-Awesome — here’s a **README-style architecture doc** you can drop in as `docs/ARCHITECTURE.md` *or* keep as a second section in your main README. It’s concise, GitHub-friendly, and uses Mermaid diagrams for flows/state.
-
----
-
 ````markdown
 # 🧭 stNXM Architecture (README Edition)
 
@@ -360,7 +316,42 @@ stNXM tokenizes Nexus underwriting into a **liquid ERC4626**: capital flows to N
 
 ```
 
---- 
+# <h1 align="center"> Hardhat-Foundry Template </h1>
 
-If you want, I can also generate a **docs site skeleton** (e.g., `docs/overview.md`, `docs/architecture.md`, `docs/integrations.md`, `docs/api.md`, `docs/risks.md`) with the same style so you can drop it into GitBook or Docusaurus.
+**Template repository for Hardhat and Foundry**
+
+### Getting Started
+
+- Use Foundry:
+
+```bash
+forge install
+forge test
+```
+
+- Use Hardhat:
+
+```bash
+npm install
+npx hardhat test
+```
+
+### Features
+
+- Write / run tests with either Hardhat or Foundry or Both:
+
+```bash
+forge test
+# or
+npx hardhat test
+# or
+npm test (to run both)
+```
+
+- Install libraries with Foundry which work with Hardhat.
+
+```bash
+forge install transmissions11/solmate # Already in this repo, just an example
+# and
+forge remappings > remappings.txt # allows resolve libraries installed with forge or npm
 ```
