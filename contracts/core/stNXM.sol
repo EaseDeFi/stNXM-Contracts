@@ -386,7 +386,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
         if (_topUpAmount > 0) {
             wNxm.unwrap(_topUpAmount);
-            nxm.approve(stakingPool, _topUpAmount);
+            nxm.approve(nxmMaster.getLatestAddress("TC"), _topUpAmount);
         }
 
         IStakingPool(stakingPool).extendDeposit(_tokenId, _initialTrancheId, _newTrancheId, _topUpAmount);
