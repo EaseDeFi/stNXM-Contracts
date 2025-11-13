@@ -305,7 +305,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             (uint256 stNxmAmount, uint256 wNxmAmount) = isToken0 ? (amount0, amount1) : (amount1, amount0);
 
             // Burn the stNXM fees.
-            if (stNxmAmount > 0) _burn(address(this), amount1);
+            if (stNxmAmount > 0) _burn(address(this), stNxmAmount);
             rewards += wNxmAmount;
         }
     }
