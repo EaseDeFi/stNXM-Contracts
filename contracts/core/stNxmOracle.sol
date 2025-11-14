@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.26;
-import "../libraries/v3-core/IUniswapV3Pool.sol";
-import "../libraries/v3-core/OracleLibrary.sol";
+
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {OracleLibrary} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
 
 contract StOracle {
 
