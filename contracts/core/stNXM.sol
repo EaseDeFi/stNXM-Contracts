@@ -77,15 +77,9 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     // All withdrawal requests
     mapping(address => WithdrawalRequest) public withdrawals;
 
-    /**
-     *
-     */
-    /**
-     * Main ***************************************************************
-     */
-    /**
-     *
-     */
+    // ============================================================
+    //                      MAIN FUNCTIONS
+    // ============================================================
 
     /**
      * @notice Main initializer for the contract.
@@ -181,15 +175,9 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         _;
     }
 
-    /**
-     *
-     */
-    /**
-     * Public ***************************************************************
-     */
-    /**
-     *
-     */
+    // ============================================================
+    //                     PUBLIC FUNCTIONS
+    // ============================================================
 
     /// We need all of these below to apply the update modifier to them.
     function deposit(uint256 assets, address receiver) public override update returns (uint256) {
@@ -349,15 +337,9 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         adminFees = 0;
     }
 
-    /**
-     *
-     */
-    /**
-     * Owner Functionality ***************************************************************
-     */
-    /**
-     *
-     */
+    // ============================================================
+    //                  OWNER FUNCTIONALITY
+    // ============================================================
 
     /**
      * @notice Owner can stake NXM to the desired pool and tranches. Privileged function.
@@ -458,15 +440,9 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         }
     }
 
-    /**
-     *
-     */
-    /**
-     * View ***************************************************************
-     */
-    /**
-     *
-     */
+    // ============================================================
+    //                     VIEW FUNCTIONS
+    // ============================================================
 
     /**
      * @notice Get total assets that the vault holds.
@@ -605,15 +581,9 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         }
     }
 
-    /**
-     *
-     */
-    /**
-     * Internal ***************************************************************
-     */
-    /**
-     *
-     */
+    // ============================================================
+    //                   INTERNAL FUNCTIONS
+    // ============================================================
 
     /**
      * @notice Stake any amount of wNXM.
@@ -706,15 +676,9 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         dexTokenIds.push(tokenId);
     }
 
-    /**
-     *
-     */
-    /**
-     * Administrative ***************************************************************
-     */
-    /**
-     *
-     */
+    // ============================================================
+    //                 ADMINISTRATIVE FUNCTIONS
+    // ============================================================
 
     /**
      * @notice Owner can pause the contract at any time. This is used in case a hack occurs and slashing must happen before withdrawals.
