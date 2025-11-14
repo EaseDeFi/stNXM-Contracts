@@ -2,7 +2,8 @@
 pragma solidity >=0.5.0;
 
 //import './pool/IUniswapV3PoolImmutables.sol';
-import './IUniswapV3PoolState.sol';
+import "./IUniswapV3PoolState.sol";
+
 //import './pool/IUniswapV3PoolDerivedState.sol';
 //import './pool/IUniswapV3PoolActions.sol';
 //import './pool/IUniswapV3PoolOwnerActions.sol';
@@ -12,8 +13,4 @@ import './IUniswapV3PoolState.sol';
 /// @notice A Uniswap pool facilitates swapping and automated market making between any two assets that strictly conform
 /// to the ERC20 specification
 /// @dev The pool interface is broken up into many smaller pieces
-interface IUniswapV3Pool is
-    IUniswapV3PoolState
-{
-
-}
+interface IUniswapV3Pool is IUniswapV3PoolState {}

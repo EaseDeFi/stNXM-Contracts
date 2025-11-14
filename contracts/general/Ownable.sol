@@ -16,14 +16,8 @@ contract Ownable {
     address private _secondOwner;
     address private _pendingSecond;
 
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
-    event SecondOwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event SecondOwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     /**
      * @dev The Ownable constructor sets the original `owner` of the contract to the sender

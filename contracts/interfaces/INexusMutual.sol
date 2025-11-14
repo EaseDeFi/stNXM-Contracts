@@ -3,7 +3,8 @@ pragma solidity ^0.8.17;
 
 /**
  * @dev Quick interface for the Nexus Mutual contract to work with the Armor Contracts.
- **/
+ *
+ */
 
 // to get nexus mutual contract address
 
@@ -14,7 +15,7 @@ interface INxmMaster {
 
     function owner() external view returns (address);
 
-    function pauseTime() external view returns (uint);
+    function pauseTime() external view returns (uint256);
 
     function masterInitialized() external view returns (bool);
 
@@ -22,75 +23,40 @@ interface INxmMaster {
 
     function isMember(address _add) external view returns (bool);
 
-    function getLatestAddress(
-        bytes2 _contractName
-    ) external view returns (address payable contractAddress);
+    function getLatestAddress(bytes2 _contractName) external view returns (address payable contractAddress);
 
     function switchMembership(address _newMembership) external;
 }
 
 interface IPooledStaking {
-    function unstakeRequests(
-        uint256 id
-    )
+    function unstakeRequests(uint256 id)
         external
         view
-        returns (
-            uint256 amount,
-            uint256 unstakeAt,
-            address contractAddress,
-            address stakerAddress,
-            uint256 next
-        );
+        returns (uint256 amount, uint256 unstakeAt, address contractAddress, address stakerAddress, uint256 next);
 
-    function processPendingActions(
-        uint256 iterations
-    ) external returns (bool success);
+    function processPendingActions(uint256 iterations) external returns (bool success);
 
     function lastUnstakeRequestId() external view returns (uint256);
 
     function stakerDeposit(address user) external view returns (uint256);
 
-    function stakerMaxWithdrawable(
-        address user
-    ) external view returns (uint256);
+    function stakerMaxWithdrawable(address user) external view returns (uint256);
 
     function withdrawReward(address user) external;
 
-    function requestUnstake(
-        address[] calldata protocols,
-        uint256[] calldata amounts,
-        uint256 insertAfter
-    ) external;
+    function requestUnstake(address[] calldata protocols, uint256[] calldata amounts, uint256 insertAfter) external;
 
-    function depositAndStake(
-        uint256 deposit,
-        address[] calldata protocols,
-        uint256[] calldata amounts
-    ) external;
+    function depositAndStake(uint256 deposit, address[] calldata protocols, uint256[] calldata amounts) external;
 
-    function stakerContractCount(
-        address staker
-    ) external view returns (uint256);
+    function stakerContractCount(address staker) external view returns (uint256);
 
-    function stakerContractAtIndex(
-        address staker,
-        uint contractIndex
-    ) external view returns (address);
+    function stakerContractAtIndex(address staker, uint256 contractIndex) external view returns (address);
 
-    function stakerContractStake(
-        address staker,
-        address protocol
-    ) external view returns (uint256);
+    function stakerContractStake(address staker, address protocol) external view returns (uint256);
 
-    function stakerContractsArray(
-        address staker
-    ) external view returns (address[] memory);
+    function stakerContractsArray(address staker) external view returns (address[] memory);
 
-    function stakerContractPendingUnstakeTotal(
-        address staker,
-        address protocol
-    ) external view returns (uint256);
+    function stakerContractPendingUnstakeTotal(address staker, address protocol) external view returns (uint256);
 
     function withdraw(uint256 amount) external;
 
@@ -98,15 +64,13 @@ interface IPooledStaking {
 }
 
 interface IClaimsData {
-    function getClaimStatusNumber(
-        uint256 claimId
-    ) external view returns (uint256, uint256);
+    function getClaimStatusNumber(uint256 claimId) external view returns (uint256, uint256);
 
     function getClaimDateUpd(uint256 claimId) external view returns (uint256);
 }
 
 interface INXMPool {
-    function buyNXM(uint minTokensOut) external payable;
+    function buyNXM(uint256 minTokensOut) external payable;
 }
 
 interface IGovernance {
@@ -114,9 +78,7 @@ interface IGovernance {
 }
 
 interface IQuotation {
-    function getWithdrawableCoverNoteCoverIds(
-        address owner
-    ) external view returns (uint256[] memory, bytes32[] memory);
+    function getWithdrawableCoverNoteCoverIds(address owner) external view returns (uint256[] memory, bytes32[] memory);
 }
 
 interface IStakingPool {
@@ -142,10 +104,7 @@ interface IStakingPool {
 
     function REWARDS_DENOMINATOR() external view returns (uint256);
 
-    function REWARD_BONUS_PER_TRANCHE_DENOMINATOR()
-        external
-        view
-        returns (uint256);
+    function REWARD_BONUS_PER_TRANCHE_DENOMINATOR() external view returns (uint256);
 
     function REWARD_BONUS_PER_TRANCHE_RATIO() external view returns (uint256);
 
@@ -169,79 +128,40 @@ interface IStakingPool {
 
     function coverTrancheAllocations(uint256) external view returns (uint256);
 
-    function depositTo(
-        uint256 amount,
-        uint256 trancheId,
-        uint256 requestTokenId,
-        address destination
-    ) external returns (uint256 tokenId);
+    function depositTo(uint256 amount, uint256 trancheId, uint256 requestTokenId, address destination)
+        external
+        returns (uint256 tokenId);
 
-    function deposits(
-        uint256,
-        uint256
-    )
+    function deposits(uint256, uint256)
         external
         view
-        returns (
-            uint96 lastAccNxmPerRewardShare,
-            uint96 pendingRewards,
-            uint128 stakeShares,
-            uint128 rewardsShares
-        );
+        returns (uint96 lastAccNxmPerRewardShare, uint96 pendingRewards, uint128 stakeShares, uint128 rewardsShares);
 
-    function expiringCoverBuckets(
-        uint256,
-        uint256,
-        uint256
-    ) external view returns (uint256);
+    function expiringCoverBuckets(uint256, uint256, uint256) external view returns (uint256);
 
-    function extendDeposit(
-        uint256 tokenId,
-        uint256 initialTrancheId,
-        uint256 newTrancheId,
-        uint256 topUpAmount
-    ) external;
+    function extendDeposit(uint256 tokenId, uint256 initialTrancheId, uint256 newTrancheId, uint256 topUpAmount)
+        external;
 
     function getAccNxmPerRewardsShare() external view returns (uint256);
 
-    function getActiveAllocations(
-        uint256 productId
-    ) external view returns (uint256[] memory trancheAllocations);
+    function getActiveAllocations(uint256 productId) external view returns (uint256[] memory trancheAllocations);
 
     function getActiveStake() external view returns (uint256);
 
-    function getActiveTrancheCapacities(
-        uint256 productId,
-        uint256 globalCapacityRatio,
-        uint256 capacityReductionRatio
-    )
+    function getActiveTrancheCapacities(uint256 productId, uint256 globalCapacityRatio, uint256 capacityReductionRatio)
         external
         view
         returns (uint256[] memory trancheCapacities, uint256 totalCapacity);
 
-    function getDeposit(
-        uint256 tokenId,
-        uint256 trancheId
-    )
+    function getDeposit(uint256 tokenId, uint256 trancheId)
         external
         view
-        returns (
-            uint256 lastAccNxmPerRewardShare,
-            uint256 pendingRewards,
-            uint256 stakeShares,
-            uint256 rewardsShares
-        );
+        returns (uint256 lastAccNxmPerRewardShare, uint256 pendingRewards, uint256 stakeShares, uint256 rewardsShares);
 
-    function getExpiredTranche(
-        uint256 trancheId
-    )
+    function getExpiredTranche(uint256 trancheId)
         external
         view
-        returns (
-            uint256 accNxmPerRewardShareAtExpiry,
-            uint256 stakeAmountAtExpiry,
-            uint256 stakeSharesSupplyAtExpiry
-        );
+        returns (uint256 accNxmPerRewardShareAtExpiry, uint256 stakeAmountAtExpiry, uint256 stakeSharesSupplyAtExpiry);
 
     function getFirstActiveBucketId() external view returns (uint256);
 
@@ -263,9 +183,7 @@ interface IStakingPool {
 
     function getStakeSharesSupply() external view returns (uint256);
 
-    function getTranche(
-        uint256 trancheId
-    ) external view returns (uint256 stakeShares, uint256 rewardsShares);
+    function getTranche(uint256 trancheId) external view returns (uint256 stakeShares, uint256 rewardsShares);
 
     function getTrancheCapacities(
         uint256 productId,
@@ -291,9 +209,7 @@ interface IStakingPool {
 
     function masterContract() external view returns (address);
 
-    function multicall(
-        bytes[] memory data
-    ) external returns (bytes[] memory results);
+    function multicall(bytes[] memory data) external returns (bytes[] memory results);
 
     function nxm() external view returns (address);
 
@@ -313,17 +229,11 @@ interface IStakingPool {
 
     function tokenController() external view returns (address);
 
-    function trancheAllocationGroups(
-        uint256,
-        uint256
-    ) external view returns (uint256);
+    function trancheAllocationGroups(uint256, uint256) external view returns (uint256);
 
-    function withdraw(
-        uint256 tokenId,
-        bool withdrawStake,
-        bool withdrawRewards,
-        uint256[] memory trancheIds
-    ) external returns (uint256 withdrawnStake, uint256 withdrawnRewards);
+    function withdraw(uint256 tokenId, bool withdrawStake, bool withdrawRewards, uint256[] memory trancheIds)
+        external
+        returns (uint256 withdrawnStake, uint256 withdrawnRewards);
 }
 
 // V2 Interfaces
@@ -341,10 +251,7 @@ interface IStakingNFT {
 
     function isApprovedForAll(address, address) external view returns (bool);
 
-    function isApprovedOrOwner(
-        address spender,
-        uint256 id
-    ) external view returns (bool);
+    function isApprovedOrOwner(address spender, uint256 id) external view returns (bool);
 
     function mint(uint256 poolId, address to) external returns (uint256 id);
 
@@ -358,28 +265,19 @@ interface IStakingNFT {
 
     function safeTransferFrom(address from, address to, uint256 id) external;
 
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 id,
-        bytes memory data
-    ) external;
+    function safeTransferFrom(address from, address to, uint256 id, bytes memory data) external;
 
     function setApprovalForAll(address spender, bool approved) external;
 
     function stakingPoolFactory() external view returns (address);
 
-    function stakingPoolOf(
-        uint256 tokenId
-    ) external view returns (uint256 poolId);
+    function stakingPoolOf(uint256 tokenId) external view returns (uint256 poolId);
 
     function supportsInterface(bytes4 interfaceId) external pure returns (bool);
 
     function symbol() external view returns (string memory);
 
-    function tokenInfo(
-        uint256 tokenId
-    ) external view returns (uint256 poolId, address owner);
+    function tokenInfo(uint256 tokenId) external view returns (uint256 poolId, address owner);
 
     function tokenURI(uint256 id) external view returns (string memory uri);
 
@@ -390,20 +288,13 @@ interface IStakingNFT {
 
 interface INFTDescriptor {
     struct StakeData {
-        uint poolId;
-        uint stakeAmount;
-        uint tokenId;
+        uint256 poolId;
+        uint256 stakeAmount;
+        uint256 tokenId;
     }
 
-    function getActiveDeposits(
-        uint256 tokenId,
-        address stakingPool
-    )
+    function getActiveDeposits(uint256 tokenId, address stakingPool)
         external
         view
-        returns (
-            string memory depositInfo,
-            uint256 totalStake,
-            uint256 pendingRewards
-        );
+        returns (string memory depositInfo, uint256 totalStake, uint256 pendingRewards);
 }

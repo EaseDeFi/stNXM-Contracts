@@ -6,12 +6,12 @@ pragma solidity ^0.8.17;
 // solhint-disable not-rely-on-time
 
 contract Lock {
-    uint public unlockTime;
+    uint256 public unlockTime;
     address payable public owner;
 
-    event Withdrawal(uint amount, uint when);
+    event Withdrawal(uint256 amount, uint256 when);
 
-    constructor(uint _unlockTime) payable {
+    constructor(uint256 _unlockTime) payable {
         require(block.timestamp < _unlockTime, "unlock time < timestamp");
 
         unlockTime = _unlockTime;

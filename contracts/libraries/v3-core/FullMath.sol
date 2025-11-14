@@ -3,11 +3,7 @@ pragma solidity ^0.8.0;
 
 library FullMath {
     /// @notice Calculates floor(a×b÷denominator) with full precision.
-    function mulDiv(
-        uint256 a,
-        uint256 b,
-        uint256 denominator
-    ) internal pure returns (uint256 result) {
+    function mulDiv(uint256 a, uint256 b, uint256 denominator) internal pure returns (uint256 result) {
         unchecked {
             // 512-bit multiply [prod1 prod0] = a * b
             uint256 prod0; // lower 256 bits
@@ -62,11 +58,7 @@ library FullMath {
     }
 
     /// @notice Calculates ceil(a×b÷denominator) with full precision.
-    function mulDivRoundingUp(
-        uint256 a,
-        uint256 b,
-        uint256 denominator
-    ) internal pure returns (uint256 result) {
+    function mulDivRoundingUp(uint256 a, uint256 b, uint256 denominator) internal pure returns (uint256 result) {
         result = mulDiv(a, b, denominator);
         unchecked {
             if (mulmod(a, b, denominator) > 0) {

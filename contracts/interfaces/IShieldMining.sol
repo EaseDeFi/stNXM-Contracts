@@ -6,5 +6,5 @@ interface IShieldMining {
         address[] calldata stakedContracts,
         address[] calldata sponsors,
         address[] calldata tokenAddresses
-    ) external returns (uint[] memory tokensRewarded);
+    ) external returns (uint256[] memory tokensRewarded);
 }
