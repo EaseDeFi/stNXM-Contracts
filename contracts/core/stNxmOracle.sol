@@ -5,7 +5,6 @@ import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Po
 import {OracleLibrary} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
 
 contract StOracle {
-
     IUniswapV3Pool public dex;
     address immutable wNxm;
     address immutable stNxm;
@@ -30,7 +29,7 @@ contract StOracle {
     // stNxm price on the dex will be very difficult to be too high because
     // minting is always available.
     function price() external view returns (uint256 twap) {
-        (int24 meanTick, ) = OracleLibrary.consult(address(dex), TWAP_PERIOD);
+        (int24 meanTick,) = OracleLibrary.consult(address(dex), TWAP_PERIOD);
         twap = OracleLibrary.getQuoteAtTick(meanTick, 1 ether, stNxm, wNxm);
 
         // Make sure price isn't too high
@@ -52,5 +51,4 @@ contract StOracle {
         uint256 apy = (_price - 1e18) * 31_536_000 / elapsedTime;
         return apy <= saneApy;
     }
-
 }

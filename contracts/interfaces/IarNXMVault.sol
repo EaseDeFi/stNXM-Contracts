@@ -5,17 +5,11 @@ import {IStakingNFT} from "./INexusMutual.sol";
 interface IarNXMVault {
     function adminPercent() external view returns (uint256);
 
-    function alertTransfer(
-        address _from,
-        address _to,
-        uint256 _amount
-    ) external;
+    function alertTransfer(address _from, address _to, uint256 _amount) external;
 
     function arNxm() external view returns (address);
 
-    function arNxmValue(
-        uint256 _nAmount
-    ) external view returns (uint256 arAmount);
+    function arNxmValue(uint256 _nAmount) external view returns (uint256 arAmount);
 
     function aum() external view returns (uint256 aumTotal);
 
@@ -52,13 +46,8 @@ interface IarNXMVault {
         address[] memory _tokens
     ) external;
 
-    function initialize(
-        address _wNxm,
-        address _arNxm,
-        address _nxm,
-        address _nxmMaster,
-        address _rewardManager
-    ) external;
+    function initialize(address _wNxm, address _arNxm, address _nxm, address _nxmMaster, address _rewardManager)
+        external;
 
     function isOwner() external view returns (bool);
 
@@ -74,9 +63,7 @@ interface IarNXMVault {
 
     function nxmMaster() external view returns (address);
 
-    function nxmValue(
-        uint256 _arAmount
-    ) external view returns (uint256 nAmount);
+    function nxmValue(uint256 _arAmount) external view returns (uint256 nAmount);
 
     function owner() external view returns (address);
 
@@ -106,12 +93,7 @@ interface IarNXMVault {
 
     function secondOwner() external view returns (address);
 
-    function stakeNxm(
-        uint amount,
-        address poolAddress,
-        uint trancheId,
-        uint requestTokenId
-    ) external;
+    function stakeNxm(uint256 amount, address poolAddress, uint256 trancheId, uint256 requestTokenId) external;
 
     function stakedNxm() external view returns (uint256 staked);
 
@@ -123,7 +105,7 @@ interface IarNXMVault {
 
     function transferSecondOwnership(address newOwner) external;
 
-    function unstakeNxm(uint _tokenId, uint256[] memory _trancheIds) external;
+    function unstakeNxm(uint256 _tokenId, uint256[] memory _trancheIds) external;
 
     function unwrapWnxm() external;
 
@@ -137,18 +119,9 @@ interface IarNXMVault {
 
     function withdrawFinalize() external;
 
-    function withdrawNxm(
-        address poolAddress,
-        uint tokenId,
-        uint256[] memory _trancheIds
-    ) external;
+    function withdrawNxm(address poolAddress, uint256 tokenId, uint256[] memory _trancheIds) external;
 
-    function withdrawals(
-        address
-    )
-        external
-        view
-        returns (uint48 requestTime, uint104 nAmount, uint104 arAmount);
+    function withdrawals(address) external view returns (uint48 requestTime, uint104 nAmount, uint104 arAmount);
 
     function withdrawalsPaused() external view returns (uint256);
 
@@ -163,19 +136,15 @@ interface IarNXMVault {
 
     // V2 Functions
 
-    function initializeV2(
-        IStakingNFT _stakingNFT,
-        uint[] memory _tokenIds,
-        address[] memory _riskPools
-    ) external;
+    function initializeV2(IStakingNFT _stakingNFT, uint256[] memory _tokenIds, address[] memory _riskPools) external;
 
     function stakingNFT() external view returns (address);
 
-    function tokenIds(uint index) external view returns (uint);
+    function tokenIds(uint256 index) external view returns (uint256);
 
-    function tokenIdToPool(uint tokenId) external view returns (address);
+    function tokenIdToPool(uint256 tokenId) external view returns (address);
 
     function lastRewardCollected() external view returns (uint256);
 
-    function removeTokenIdAtIndex(uint _index) external;
+    function removeTokenIdAtIndex(uint256 _index) external;
 }

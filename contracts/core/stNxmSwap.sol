@@ -11,10 +11,7 @@ contract TokenSwap {
     string public name = "arNXM/stNXM Token Swap";
     uint256 public immutable exchangeRate = 956860757679165373;
 
-    constructor(
-        address _stNXM,
-        address _arNXM
-    ) {
+    constructor(address _stNXM, address _arNXM) {
         stNXM = IERC20(_stNXM);
         arNXM = IERC20(_arNXM);
     }
