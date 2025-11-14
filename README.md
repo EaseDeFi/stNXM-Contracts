@@ -1,6 +1,6 @@
 # 🏦 stNXM Architecture
 
-This document explains how **stNXM** (Staked NXM) works under the hood: components, flows, accounting, delays, risks, and the key on-chain APIs.
+This document explains how **stNXM** (Staked NXM) works under the hood: components, flows, accounting, delays, risks, and developer interface.
 
 - [High-Level Design](#high-level-design)
 - [Core Components](#core-components)
@@ -10,7 +10,7 @@ This document explains how **stNXM** (Staked NXM) works under the hood: componen
 - [Integrations](#integrations)
 - [Admin & Parameters](#admin--parameters)
 - [Events](#events)
-- [Developer API (Quick Ref)](#developer-api-quick-ref)
+- [Developer Interface (Quick Ref)](#developer-interface-quick-ref)
 - [Security Considerations](#security-considerations)
 - [Testing Checklist](#testing-checklist)
 
@@ -18,11 +18,11 @@ This document explains how **stNXM** (Staked NXM) works under the hood: componen
 
 ## High-Level Design
 
-stNXM is an **ERC4626Upgradeable** vault accepting **wNXM** and minting **stNXM** shares. Capital is allocated across:
+stNXM is an **ERC4626Upgradeable** vault accepting **wNXM** and minting **stNXM** shares. 
 
-- **Nexus Mutual staking pools** (multiple NFTs across tranches), the primary purpose and majority investment of stNXM.
-- **Uniswap V3 LP** in the **stNXM/wNXM** pool, which is only used for a hot start so lending can be immediately used.
-- **Morpho Blue** supply position (wNXM lent, stNXM as collateral), which is also primarily for a hot start.
+Capital is allocated to **Nexus Mutual** staking pools in which it provides underwriting capacity for the mutual's insurance alternatives. 
+
+To begin with, small amounts of capital will also be allocated to **Uniswap V3** and **Morpho Blue** in order to hotstart the LST ecosystem with immediately-available trading, lending, and borrowing.
 
 Rewards from Nexus + Uniswap + Morpho are **auto-compounded** into the vault. Withdrawals are **delayed** and may be **paused** during claim events.
 
@@ -51,7 +51,7 @@ totalAssets() = stakedNxm() + unstakedNxm() - adminFees
 
 Where:
 
-* `stakedNxm()` = pro-rata stake across **all pool NFTs & tranches** (handles unexpired & expired tranches).
+* `stakedNxm()` = stake across **all Nexus Mutual pool NFTs & tranches** (handles unexpired & expired tranches).
 * `unstakedNxm()` = wallet wNXM + wallet NXM + **Uniswap LP wNXM leg** + **Morpho** supplied assets (converted shares→assets).
 * **Admin Fees:** `adminFees` accrue when balance grows (rewards) per `adminPercent`.
 
@@ -125,7 +125,7 @@ sequenceDiagram
 **Pause**
 
 * `notPaused` modifier blocks `_withdraw` and `withdrawFinalize` when `paused = true`.
-* `togglePause()` is **owner-only**; intended for Nexus/DAO multisig during coverage events.
+* `togglePause()` is **owner-only**; intended for admin multisig activation during coverage events.
 
 ---
 
@@ -190,7 +190,7 @@ Admin functions (owner-only unless noted):
 
 ---
 
-## Developer API (Quick Ref)
+## Developer Interface (Quick Ref)
 
 **User-facing (ERC4626)**
 
@@ -243,11 +243,11 @@ changeBeneficiary(address)
 ## Security Considerations
 
 * **Withdrawal Throttling:** `pending` shares + `maxWithdraw`/`maxRedeem` ensure users can only exit against **actual wNXM on hand**.
-* **Claim Events:** `paused` protects solvency during claim/ slash windows.
+* **Claim Events:** `paused` protects pool funds during claim/slash windows. stNXM can still be sold on dexes which will determine market price.
 * **Admin Fee Bound:** `changeAdminPercent` enforces `<= 50%` cap at contract level.
 * **Virtual Supply:** Excluding LP-minted stNXM from `totalSupply()` prevents share price distortion.
 * **Oracle:** Morpho uses Uniswap TWAP for robust pricing; LP uses fee tier 500 with explicit ticks.
-* **Rescue Guard:** `rescueToken` **cannot** withdraw `wNXM` or `stNXM`.
+* **Rescue Guard:** `rescueToken` **cannot** withdraw `wNXM`, `NXM`, or `stNXM`.
 
 ---
 
@@ -261,12 +261,11 @@ changeBeneficiary(address)
 * [ ] Morpho position: supply/redeem round-trips; `morphoBalance()` shares→assets conversion.
 * [ ] Tranche roll: `resetTranches()` around 91-day boundaries; expired tranche reads.
 * [ ] Access control: owner-only functions, rescue guardrails, fee cap.
-* [ ] Edge cases: zero-liquidity LP, no active tranches, partial pending withdrawals, tiny dust amounts.
 
 ---
 
 **TL;DR**
-stNXM tokenizes Nexus underwriting into a **liquid ERC4626**: capital flows to Nexus pools, Uniswap LP, and Morpho; rewards compound; withdrawals are delayed & pausable to handle claims — with robust accounting to keep share price honest.
+stNXM tokenizes Nexus underwriting into a **liquid ERC4626**: capital flows to Nexus pools; rewards compound; withdrawals are delayed & pausable to handle claims — with robust accounting to keep share price honest.
 
 # <h1 align="center"> Hardhat-Foundry Instructions </h1>
 
