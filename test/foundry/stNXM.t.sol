@@ -29,7 +29,7 @@ contract stNxmTest is Test {
 
     IWNXM wNxm = IWNXM(0x0d438F3b5175Bebc262bF23753C1E53d03432bDE);
     IERC20 arNxm = IERC20(0x1337DEF18C680aF1f9f45cBcab6309562975b1dD);
-    address arNxmVault = 0x1337DEF1FC06783D4b03CB8C1Bf3EBf7D0593FC4;    
+    address arNxmVault = 0x1337DEF1FC06783D4b03CB8C1Bf3EBf7D0593FC4;
     StNXM stNxm;
 
     IStakingNFT stakingNFT = IStakingNFT(0xcafea508a477D94c502c253A58239fb8F948e97f);
@@ -41,7 +41,11 @@ contract stNxmTest is Test {
     StOracle stNxmOracle;
     IUniswapV3Pool dex;
 
-    address[] riskPools = [0x5A44002A5CE1c2501759387895A3b4818C3F50b3, 0x5A44002A5CE1c2501759387895A3b4818C3F50b3, 0x34D250E9fA70748C8af41470323B4Ea396f76c16];
+    address[] riskPools = [
+        0x5A44002A5CE1c2501759387895A3b4818C3F50b3,
+        0x5A44002A5CE1c2501759387895A3b4818C3F50b3,
+        0x34D250E9fA70748C8af41470323B4Ea396f76c16
+    ];
     uint256[] tokenIds = [214, 215, 242];
 
     address multisig = 0x1f28eD9D4792a567DaD779235c2b766Ab84D8E33;
@@ -65,11 +69,14 @@ contract stNxmTest is Test {
 
         // Deploy and fill swap here.
         stNxmSwap = new TokenSwap(address(stNxm), address(arNxm));
-        
+
         stNxm.transfer(address(stNxmSwap), 100000 ether);
 
         // And create and initialize uniswap pool with a 1:1 exchange
-        dex = IUniswapV3Pool(IUniswapFactory(uniswapFactory).createPool(address(stNxm), address(wNxm), 500));
+        IUniswapFactory(uniswapFactory).createPool(address(stNxm), address(wNxm), 500);
+
+        // Get the actual pool address from factory instead of relying on return value
+        dex = IUniswapV3Pool(IUniswapFactory(uniswapFactory).getPool(address(stNxm), address(wNxm), 500));
         IUniswapV3Pool(dex).initialize(79228162514264337593543950336);
 
         // Create oracle here
@@ -123,7 +130,7 @@ contract stNxmTest is Test {
     function withdrawWNXM(uint256 amount, address user) public {
         vm.startPrank(user);
         stNxm.approve(address(stNxm), amount);
-        stNxm.redeem(amount, user, user); 
+        stNxm.redeem(amount, user, user);
         vm.stopPrank();
     }
 
@@ -200,9 +207,7 @@ contract stNxmTest is Test {
 
         require((vaultsStNxmBalAfter - vaultsStNxmBalBefore) == whaleStNxmBal, "arnxm transfer to vault error");
 
-        require(
-            (totalPendingAfter - totalPendingBefore) == whaleStNxmBal, "pending not updated"
-        );
+        require((totalPendingAfter - totalPendingBefore) == whaleStNxmBal, "pending not updated");
     }
 
     function testFinalizeWithdrawal() public {
@@ -304,9 +309,7 @@ contract stNxmTest is Test {
         // should mint new nft
         require((stakingNFTBalAfter - stakingNFTBalBefore) == 1, "nft not minted");
         uint256 mintedNFTTokenId = stakingNFT.totalSupply();
-        require(
-            stakingNFT.ownerOf(mintedNFTTokenId) == address(stNxm), "arNXM vault should be owner of new nft"
-        );
+        require(stakingNFT.ownerOf(mintedNFTTokenId) == address(stNxm), "arNXM vault should be owner of new nft");
 
         INFTDescriptor nftDescriptor = INFTDescriptor(stakingNFT.nftDescriptor());
 
@@ -380,11 +383,11 @@ contract stNxmTest is Test {
         require(tokenIdAtIndex0After != tokenIdAtIndex0Before, "token id at index should change");
     }
 
-    function testWithdrawFromUni() public { 
+    function testWithdrawFromUni() public {
         uint256 balBefore = wNxm.balanceOf(address(stNxm));
         uint256 tsBefore = stNxm.totalSupply();
         uint256 dexTokenId = stNxm.dexTokenIds(0);
-        (,,,,,,,uint128 liquidity,,,,) = nfp.positions(dexTokenId);
+        (,,,,,,, uint128 liquidity,,,,) = nfp.positions(dexTokenId);
         vm.startPrank(multisig);
         stNxm.decreaseLiquidity(dexTokenId, liquidity);
         vm.stopPrank();
@@ -395,8 +398,9 @@ contract stNxmTest is Test {
         require(tsBefore == tsAfter, "Total supply has changed when it shouldn't!");
     }
 
-    function testMorpho() public { 
-        MarketParams memory marketParams = MarketParams(address(wNxm), address(stNxm), address(stNxmOracle), irm, 625000000000000000);
+    function testMorpho() public {
+        MarketParams memory marketParams =
+            MarketParams(address(wNxm), address(stNxm), address(stNxmOracle), irm, 625000000000000000);
         Id morphoId = Id.wrap(keccak256(abi.encode(marketParams)));
 
         Position memory pos = morpho.position(morphoId, address(stNxm));
@@ -425,11 +429,13 @@ contract stNxmTest is Test {
     }
 
     function testTrancheAndPoolAllocations() public view {
-        (uint256[] memory pools, uint256[] memory tokenAmounts, uint256[8] memory trancheAmounts) = stNxm.trancheAndPoolAllocations();
+        (uint256[] memory pools, uint256[] memory tokenAmounts, uint256[8] memory trancheAmounts) =
+            stNxm.trancheAndPoolAllocations();
         require(pools[0] == 22 && pools[1] == 22 && pools[2] == 8, "Pool IDs do not match.");
         uint256 stakedNxm = stNxm.stakedNxm();
         uint256 testedStake = tokenAmounts[0] + tokenAmounts[1] + tokenAmounts[2];
-        uint256 testedTranche = trancheAmounts[0] + trancheAmounts[1] + trancheAmounts[2] + trancheAmounts[3] + trancheAmounts[4] + trancheAmounts[5] + trancheAmounts[6] + trancheAmounts[7];
+        uint256 testedTranche = trancheAmounts[0] + trancheAmounts[1] + trancheAmounts[2] + trancheAmounts[3]
+            + trancheAmounts[4] + trancheAmounts[5] + trancheAmounts[6] + trancheAmounts[7];
         require(testedStake == stakedNxm, "Staked amounts don't match.");
         require(testedTranche == stakedNxm, "Tranche amounts don't match.");
     }
@@ -446,7 +452,7 @@ contract stNxmTest is Test {
         stNxm.withdrawAdminFees();
         uint256 adminBalanceAfter = wNxm.balanceOf(multisig);
 
-        require (adminBalanceAfter - adminBalanceBefore > 0.099 ether, "Incorrect amount withdrawn.");
+        require(adminBalanceAfter - adminBalanceBefore > 0.099 ether, "Incorrect amount withdrawn.");
 
         // Check with getRewards being called.
         vm.warp(block.timestamp + 7 days);
@@ -454,14 +460,16 @@ contract stNxmTest is Test {
         stNxm.getRewards();
         stNxm.withdrawAdminFees();
         adminBalanceAfter = wNxm.balanceOf(multisig);
-        require (adminBalanceAfter > adminBalanceBefore, "Incorrect amount withdrawn 2.");
+        require(adminBalanceAfter > adminBalanceBefore, "Incorrect amount withdrawn 2.");
     }
 
-    function testWithdrawDexFees() public { 
+    function testWithdrawDexFees() public {
         // Make a random uniswap exchange so there are fees in the pool.
         vm.startPrank(wnxmWhale);
         wNxm.approve(address(swapRouter), 1 ether);
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams(address(wNxm), address(stNxm), 500, wnxmWhale, 1000000000000000, 1 ether, 0, 0);
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams(
+            address(wNxm), address(stNxm), 500, wnxmWhale, 1000000000000000, 1 ether, 0, 0
+        );
         swapRouter.exactInputSingle(params);
         vm.stopPrank();
 
@@ -475,7 +483,7 @@ contract stNxmTest is Test {
         depositWNXM(2 ether, wnxmWhale);
         withdrawWNXM(1 ether, wnxmWhale);
         vm.warp(block.timestamp + 2 days + 1 hours);
-        
+
         vm.startPrank(multisig);
         stNxm.togglePause();
         vm.stopPrank();
@@ -493,7 +501,6 @@ contract stNxmTest is Test {
         require(balance == 956860757679165373, "Swap didn't execute correctly.");
     }
 
-    
     function testOracle() public {
         //uint256 price = stNxmOracle.price();
         //require(price == 1 ether, "Incorrect starting price.");
@@ -502,7 +509,9 @@ contract stNxmTest is Test {
         // Make a random uniswap exchange so there are fees in the pool.
         vm.startPrank(wnxmWhale);
         wNxm.approve(address(swapRouter), 1 ether);
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams(address(wNxm), address(stNxm), 500, wnxmWhale, 1000000000000000, 1 ether, 0, 0);
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams(
+            address(wNxm), address(stNxm), 500, wnxmWhale, 1000000000000000, 1 ether, 0, 0
+        );
         swapRouter.exactInputSingle(params);
         vm.stopPrank();
 
@@ -513,7 +522,9 @@ contract stNxmTest is Test {
         // Make a random uniswap exchange so there are fees in the pool.
         vm.startPrank(wnxmWhale);
         wNxm.approve(address(swapRouter), 10000 ether);
-        params = ISwapRouter.ExactInputSingleParams(address(wNxm), address(stNxm), 500, wnxmWhale, 1000000000000000, 1 ether, 0, 0);
+        params = ISwapRouter.ExactInputSingleParams(
+            address(wNxm), address(stNxm), 500, wnxmWhale, 1000000000000000, 1 ether, 0, 0
+        );
         swapRouter.exactInputSingle(params);
         vm.stopPrank();
 
@@ -521,5 +532,4 @@ contract stNxmTest is Test {
         vm.expectRevert();
         price = stNxmOracle.price();
     }
-
 }

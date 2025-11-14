@@ -5,13 +5,13 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {PositionValue} from "@uniswap/v3-periphery/contracts/libraries/PositionValue.sol";
+import {PositionValue} from "../libraries/v3-core/PositionValue.sol";
 
 import {Ownable} from "../general/Ownable.sol";
 import {ERC721TokenReceiver} from "../general/ERC721TokenReceiver.sol";
 
-import {INonfungiblePositionManager} from "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
-import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {INonfungiblePositionManager} from "../interfaces/INonfungiblePositionManager.sol";
+import {IUniswapV3Pool} from "../libraries/v3-core/IUniswapV3Pool.sol";
 import {IStakingPool, INxmMaster} from "../interfaces/INexusMutual.sol";
 import {IMorpho, MarketParams, Position, Market, Id} from "../interfaces/IMorpho.sol";
 import {IWNXM} from "../interfaces/IWNXM.sol";
@@ -432,14 +432,10 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @param liquidity Amount of liquidity to remove from the token.
      */
     function decreaseLiquidity(uint256 tokenId, uint128 liquidity) external onlyOwner update {
-        INonfungiblePositionManager.DecreaseLiquidityParams memory params = INonfungiblePositionManager
-            .DecreaseLiquidityParams({
-            tokenId: tokenId,
-            liquidity: liquidity,
-            amount0Min: 0,
-            amount1Min: 0,
-            deadline: block.timestamp
-        });
+        INonfungiblePositionManager.DecreaseLiquidityParams memory params =
+            INonfungiblePositionManager.DecreaseLiquidityParams({
+                tokenId: tokenId, liquidity: liquidity, amount0Min: 0, amount1Min: 0, deadline: block.timestamp
+            });
 
         nfp.decreaseLiquidity(params);
         (uint256 amount0, uint256 amount1) = nfp.collect(

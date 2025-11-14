@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (c) Ease DAO
-pragma solidity 0.8.20;
+pragma solidity ^0.8.26;
 
 import {console2} from "forge-std/console2.sol";
 import {Script} from "forge-std/Script.sol";
