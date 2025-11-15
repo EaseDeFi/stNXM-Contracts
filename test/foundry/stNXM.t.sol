@@ -20,7 +20,7 @@ import "../../contracts/libraries/v3-core/ISwapRouter.sol";
 // import new contracts
 import {StNXM} from "../../contracts/core/stNXM.sol";
 import {TokenSwap} from "../../contracts/core/stNxmSwap.sol";
-import {StOracle} from "../../contracts/core/stNxmOracle.sol";
+import {StNxmOracle} from "../../contracts/core/stNxmOracle.sol";
 
 contract stNxmTest is Test {
     error InvalidStakingPoolForToken();
@@ -38,7 +38,7 @@ contract stNxmTest is Test {
     ISwapRouter swapRouter = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
 
     TokenSwap stNxmSwap;
-    StOracle stNxmOracle;
+    StNxmOracle stNxmOracle;
     IUniswapV3Pool dex;
 
     address[] riskPools = [
@@ -81,7 +81,7 @@ contract stNxmTest is Test {
         IUniswapV3Pool(dex).initialize(79228162514264337593543950336);
 
         // Create oracle here
-        stNxmOracle = new StOracle(address(dex), address(wNxm), address(stNxm));
+        stNxmOracle = new StNxmOracle(address(dex), address(wNxm), address(stNxm));
 
         // Create Morpho pool here
         morpho.createMarket(MarketParams(address(wNxm), address(stNxm), address(stNxmOracle), irm, 625000000000000000));

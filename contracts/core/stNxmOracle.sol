@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {OracleLibrary} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
 
-contract StOracle {
+contract StNxmOracle {
     IUniswapV3Pool public dex;
     address immutable wNxm;
     address immutable stNxm;
