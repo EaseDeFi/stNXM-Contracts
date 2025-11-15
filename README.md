@@ -287,6 +287,11 @@ npx hardhat test
 
 ### Features
 
+- Create a .env file with your Infura API
+```bash
+INFURA_API=https://mainnet.infura.io/v3/{YOUR_API_KEY}
+```
+
 - Write / run tests with either Hardhat or Foundry or Both:
 
 ```bash
