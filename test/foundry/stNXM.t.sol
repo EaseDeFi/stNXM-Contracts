@@ -58,7 +58,8 @@ contract stNxmTest is Test {
     address arnxmWhale = 0x28a55C4b4f9615FDE3CDAdDf6cc01FcF2E38A6b0;
 
     function setUp() public {
-        currentFork = vm.createFork("https://mainnet.infura.io/v3/0c7537c516c74815abb1b4d3ad076a2e", 23665310);
+        string memory infura = vm.envString("INFURA_API");
+        currentFork = vm.createFork(infura, 23665310);
         vm.selectFork(currentFork);
 
         // Create new stNxm contract here
@@ -155,18 +156,6 @@ contract stNxmTest is Test {
     /*//////////////////////////////////////////////////////////////
                             TESTS
     //////////////////////////////////////////////////////////////*/
-
-    function testInitializedValues() public {
-        // check if stakingNFT is initialized properly
-        //require(stNxm.stakingNFT() == address(stakingNFT), "staking nft not setup");
-        // check if token id's are initialized properly
-        //require(stNxm.tokenIds(0) == 3);
-        //require(stNxm.tokenIds(1) == 4);
-
-        // check if risk pools are initialized properly
-        //require(stNxm.tokenIdToPool(3) == riskPools[0]);
-        //require(stNxm.tokenIdToPool(4) == riskPools[1]);
-    }
 
     function testAum() public view {
         uint256 aum = stNxm.totalAssets();

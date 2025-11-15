@@ -91,7 +91,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         __ERC4626_init(IERC20(address(wNxm)));
         Ownable.initializeOwnable();
 
-        // Need to mint a certain amount and send it to owner. Maybe just arNXM total supply?
+        // Need to mint a certain amount and send it to owner. This will be similar to arNXM total supply
+        // since we have a swap contract that will allow people to go from arNXM -> stNXM.
         _mint(owner(), _mintAmount);
 
         adminPercent = 100;
