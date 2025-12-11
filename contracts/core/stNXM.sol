@@ -348,16 +348,15 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     /**
      * @notice Owner can stake NXM to the desired pool and tranches. Privileged function.
      * @param _amount Amount of NXM to stake into the pool.
-     * @param _poolAddress Address of the pool that we're staking to.
      * @param _trancheId ID of the tranche to stake to.
      * @param _requestTokenId Token ID we're adding to if it's already been minted.
      */
-    function stakeNxm(uint256 _amount, address _poolAddress, uint256 _trancheId, uint256 _requestTokenId)
+    function stakeNxm(uint256 _amount, uint256 _trancheId, uint256 _requestTokenId)
         external
         onlyOwner
         update
     {
-        _stakeNxm(_amount, _poolAddress, _trancheId, _requestTokenId);
+        _stakeNxm(_amount, tokenIdToPool[_requestTokenId], _trancheId, _requestTokenId);
     }
 
     /**
@@ -607,7 +606,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         uint256 tokenId = pool.depositTo(_amount, _trancheId, _requestTokenId, address(this));
         
         // if new nft token is minted we need to keep track of
-        // tokenId and poolAddress inorder to calculate assets
+        // tokenId and poolAddress in order to calculate assets
         // under management
         if (tokenIdToPool[tokenId] == address(0)) {
             tokenIds.push(tokenId);
