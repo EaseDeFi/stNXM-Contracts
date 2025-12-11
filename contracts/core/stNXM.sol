@@ -148,21 +148,25 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @notice Update admin fees based on any changes that occurred between last deposit and withdrawal.
      * @dev This is to be used on functions that have balance changes unrelated to rewards within them such as deposit/withdraw.
      */
-    modifier update() {
+    modifier update () {
+        _updateBefore();
+        _;
+        _updateAfter();
+    }
+    function _updateBefore() internal {
         // Wrap NXM in case rewards were sent to the contract without us knowing
         uint256 nxmBalance = nxm.balanceOf(address(this));
         if (nxmBalance > 0) wNxm.wrap(nxmBalance);
-
         uint256 balance = wNxm.balanceOf(address(this));
         uint256 staked = stakedNxm();
-
         // This only happens without another update if rewards have entered the contract.
         if (balance > lastBalance && lastStaked <= staked) {
             adminFees += (balance - lastBalance) * adminPercent / DIVISOR;
         }
-
-        _;
-
+    }
+    
+    function _updateAfter() internal
+    {
         lastBalance = wNxm.balanceOf(address(this));
         lastStaked = stakedNxm();
     }
