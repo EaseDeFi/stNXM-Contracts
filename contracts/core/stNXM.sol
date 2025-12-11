@@ -161,7 +161,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         uint256 balance = wNxm.balanceOf(address(this));
         uint256 staked = stakedNxm();
         // This only happens without another update if rewards have entered the contract.
-        if (balance > lastBalance && lastStaked <= staked) {
+        if (balance > lastBalance && lastStaked <= staked && staked != 0) {
             adminFees += (balance - lastBalance) * adminPercent / DIVISOR;
         }
     }
