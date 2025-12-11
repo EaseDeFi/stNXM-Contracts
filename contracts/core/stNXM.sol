@@ -153,6 +153,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         _;
         _updateAfter();
     }
+
     function _updateBefore() internal {
         // Wrap NXM in case rewards were sent to the contract without us knowing
         uint256 nxmBalance = nxm.balanceOf(address(this));
@@ -165,8 +166,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         }
     }
     
-    function _updateAfter() internal
-    {
+    function _updateAfter() internal {
         lastBalance = wNxm.balanceOf(address(this));
         lastStaked = stakedNxm();
     }
@@ -605,13 +605,20 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
         IStakingPool pool = IStakingPool(_poolAddress);
         uint256 tokenId = pool.depositTo(_amount, _trancheId, _requestTokenId, address(this));
-        tokenIdToTranches[tokenId].push(_trancheId);
+        
         // if new nft token is minted we need to keep track of
         // tokenId and poolAddress inorder to calculate assets
         // under management
         if (tokenIdToPool[tokenId] == address(0)) {
             tokenIds.push(tokenId);
             tokenIdToPool[tokenId] = _poolAddress;
+            tokenIdToTranches[tokenId].push(_trancheId);
+        } else { // Add tranche ID if it doesn't already exist
+            uint256[] memory tranches = tokenIdToTranches[tokenId];
+            for (uint256 i = 0; i < tranches.length; i++) {
+                if (tranches[i] == _trancheId) return;
+            }
+            tokenIdToTranches[tokenId].push(_trancheId);
         }
     }
 
