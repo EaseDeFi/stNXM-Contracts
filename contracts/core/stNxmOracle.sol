@@ -46,7 +46,7 @@ contract StNxmOracle {
         // Amount of 1 year it's been
         uint256 elapsedTime = block.timestamp - startTime;
         // If price is lower than equal it's not too high.
-        if (_price < 1e18) return true;
+        if (_price < 1e18 || elapsedTime < 7 days) return true;
 
         uint256 apy = (_price - 1e18) * 31_536_000 / elapsedTime;
         return apy <= saneApy;

@@ -36,6 +36,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     IWNXM public constant wNxm = IWNXM(0x0d438F3b5175Bebc262bF23753C1E53d03432bDE);
     IERC20 public constant nxm = IERC20(0xd7c49CEE7E9188cCa6AD8FF264C1DA2e69D4Cf3B);
     INxmMaster public constant nxmMaster = INxmMaster(0x01BFd82675DBCc7762C84019cA518e701C0cD07e);
+    IStakingNFT public constant stakingNFT = IStakingNFT(0xcafea508a477D94c502c253A58239fb8F948e97f);
     IMorpho public constant morpho = IMorpho(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
     INonfungiblePositionManager public constant nfp =
         INonfungiblePositionManager(0xC36442b4a4522E871399CD717aBDD847Ab11FE88);
@@ -380,6 +381,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         }
 
         IStakingPool(stakingPool).extendDeposit(_tokenId, _initialTrancheId, _newTrancheId, _topUpAmount);
+
+        // todo: Here we need to add new tranche id to tranches
     }
 
     /**
@@ -516,6 +519,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      */
     function dexBalances() public view returns (uint256 assetsAmount, uint256 sharesAmount) {
         (uint160 sqrtRatio,,,,,,) = dex.slot0();
+        // todo: Need to be using twap here
 
         for (uint256 i = 0; i < dexTokenIds.length; i++) {
             (uint256 posAmount0, uint256 posAmount1) = PositionValue.total(nfp, dexTokenIds[i], sqrtRatio);
@@ -604,7 +608,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
         IStakingPool pool = IStakingPool(_poolAddress);
         uint256 tokenId = pool.depositTo(_amount, _trancheId, _requestTokenId, address(this));
-        
+        require(stakingNFT.ownerOf(tokenId) == address(this), "Token is not owned by stNXM vault.");
+
         // if new nft token is minted we need to keep track of
         // tokenId and poolAddress in order to calculate assets
         // under management
@@ -668,8 +673,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             tickUpper: _tickUpper,
             amount0Desired: amountToAdd,
             amount1Desired: amountToAdd,
-            amount0Min: 0,
-            amount1Min: 0,
+            amount0Min: 0 // todo: something here,
+            amount1Min: 0 // something here,
             recipient: address(this),
             deadline: block.timestamp
         });
@@ -732,6 +737,15 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      */
     function removeTokenIdAtIndex(uint256 _index) external onlyOwner {
         uint256 tokenId = tokenIds[_index];
+
+        // Make sure the token no longer has a stake
+        address pool = tokenIdToPool[tokenId];
+        uint256 lastTranche = block.timestamp / 91 days - 1;
+        for (uint256 i = lastTranche; i < lastTranche + 8; i++) {
+            (,, uint256 stakeShares,) = IStakingPool(pool).getDeposit(tokenId, i);
+            require(stakeShares == 0, "Token still has a stake.");
+        }
+
         tokenIds[_index] = tokenIds[tokenIds.length - 1];
         tokenIds.pop();
         // remove mapping to pool
