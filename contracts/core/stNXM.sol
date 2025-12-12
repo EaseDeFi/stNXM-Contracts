@@ -11,6 +11,7 @@ import {PositionValue} from "../libraries/v3-core/PositionValue.sol";
 import {ERC721TokenReceiver} from "../general/ERC721TokenReceiver.sol";
 import {INonfungiblePositionManager} from "../interfaces/INonfungiblePositionManager.sol";
 import {IUniswapV3Pool} from "../libraries/v3-core/IUniswapV3Pool.sol";
+import {OracleLibrary} from "../libraries/v3-core/OracleLibrary.sol";
 import {IStakingPool, INxmMaster} from "../interfaces/INexusMutual.sol";
 import {IMorpho, MarketParams, Position, Market, Id} from "../interfaces/IMorpho.sol";
 import {IWNXM} from "../interfaces/IWNXM.sol";
@@ -127,19 +128,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         tokenIdToPool[215] = 0x5A44002A5CE1c2501759387895A3b4818C3F50b3;
         tokenIds.push(242);
         tokenIdToPool[242] = 0x34D250E9fA70748C8af41470323B4Ea396f76c16;
-
-        // Get the initial tranches
-        uint256 firstTranche = block.timestamp / 91 days;
-
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            uint256 id = tokenIds[i];
-            address _stakingPool = tokenIdToPool[id];
-
-            for (uint256 tranche = firstTranche; tranche < firstTranche + 8; tranche++) {
-                (,, uint256 trancheDeposit,) = IStakingPool(_stakingPool).getDeposit(id, tranche);
-                if (trancheDeposit > 0) tokenIdToTranches[id].push(tranche);
-            }
-        }
+        resetTranches();
 
         lastBalance = wNxm.balanceOf(address(this));
         lastStaked = stakedNxm();
@@ -317,7 +306,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     /**
      * @notice Check and reset all active tranches for each NFT ID. Can be called by anyone.
      */
-    function resetTranches() public update {
+    function resetTranches() public {
         // Use the most recently expired tranche
         uint256 firstTranche = (block.timestamp / 91 days) - 1;
 
@@ -382,7 +371,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
         IStakingPool(stakingPool).extendDeposit(_tokenId, _initialTrancheId, _newTrancheId, _topUpAmount);
 
-        // todo: Here we need to add new tranche id to tranches
+        resetTranches();
     }
 
     /**
@@ -518,8 +507,10 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @notice Find balances of both wNXM and stNXM within the Uniswap pool this contract uses.
      */
     function dexBalances() public view returns (uint256 assetsAmount, uint256 sharesAmount) {
-        (uint160 sqrtRatio,,,,,,) = dex.slot0();
-        // todo: Need to be using twap here
+        uint32 twapPeriod = 1800; // 30 minutes  
+        uint160 sqrtRatio = OracleLibrary.getSqrtRatioAtTick(  
+            OracleLibrary.consult(address(dex), twapPeriod)  
+        );
 
         for (uint256 i = 0; i < dexTokenIds.length; i++) {
             (uint256 posAmount0, uint256 posAmount1) = PositionValue.total(nfp, dexTokenIds[i], sqrtRatio);
@@ -618,11 +609,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             tokenIdToPool[tokenId] = _poolAddress;
             tokenIdToTranches[tokenId].push(_trancheId);
         } else { // Add tranche ID if it doesn't already exist
-            uint256[] memory tranches = tokenIdToTranches[tokenId];
-            for (uint256 i = 0; i < tranches.length; i++) {
-                if (tranches[i] == _trancheId) return;
-            }
-            tokenIdToTranches[tokenId].push(_trancheId);
+            resetTranches();
         }
     }
 
@@ -673,8 +660,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             tickUpper: _tickUpper,
             amount0Desired: amountToAdd,
             amount1Desired: amountToAdd,
-            amount0Min: 0 // todo: something here,
-            amount1Min: 0 // something here,
+            amount0Min: amountToAdd,
+            amount1Min: amountToAdd,
             recipient: address(this),
             deadline: block.timestamp
         });
@@ -741,7 +728,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         // Make sure the token no longer has a stake
         address pool = tokenIdToPool[tokenId];
         uint256 lastTranche = block.timestamp / 91 days - 1;
-        for (uint256 i = lastTranche; i < lastTranche + 8; i++) {
+        for (uint256 i = lastTranche; i < lastTranche + 9; i++) {
             (,, uint256 stakeShares,) = IStakingPool(pool).getDeposit(tokenId, i);
             require(stakeShares == 0, "Token still has a stake.");
         }

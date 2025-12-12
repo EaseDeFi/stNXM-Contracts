@@ -14,7 +14,7 @@ library OracleLibrary {
     /// @return arithmeticMeanTick The arithmetic mean tick from (block.timestamp - secondsAgo) to block.timestamp
     /// @return harmonicMeanLiquidity The harmonic mean liquidity from (block.timestamp - secondsAgo) to block.timestamp
     function consult(address pool, uint32 secondsAgo)
-        internal
+        public
         view
         returns (int24 arithmeticMeanTick, uint128 harmonicMeanLiquidity)
     {
@@ -47,7 +47,7 @@ library OracleLibrary {
     /// @param quoteToken Address of an ERC20 token contract used as the quoteAmount denomination
     /// @return quoteAmount Amount of quoteToken received for baseAmount of baseToken
     function getQuoteAtTick(int24 tick, uint128 baseAmount, address baseToken, address quoteToken)
-        internal
+        public
         pure
         returns (uint256 quoteAmount)
     {
@@ -70,7 +70,7 @@ library OracleLibrary {
     /// @notice Given a pool, it returns the number of seconds ago of the oldest stored observation
     /// @param pool Address of Uniswap V3 pool that we want to observe
     /// @return secondsAgo The number of seconds ago of the oldest observation stored for the pool
-    function getOldestObservationSecondsAgo(address pool) internal view returns (uint32 secondsAgo) {
+    function getOldestObservationSecondsAgo(address pool) public view returns (uint32 secondsAgo) {
         (,, uint16 observationIndex, uint16 observationCardinality,,,) = IUniswapV3Pool(pool).slot0();
         require(observationCardinality > 0, "NI");
 
@@ -89,7 +89,7 @@ library OracleLibrary {
     /// @notice Given a pool, it returns the tick value as of the start of the current block
     /// @param pool Address of Uniswap V3 pool
     /// @return The tick that the pool was in at the start of the current block
-    function getBlockStartingTickAndLiquidity(address pool) internal view returns (int24, uint128) {
+    function getBlockStartingTickAndLiquidity(address pool) public view returns (int24, uint128) {
         (, int24 tick, uint16 observationIndex, uint16 observationCardinality,,,) = IUniswapV3Pool(pool).slot0();
 
         // 2 observations are needed to reliably calculate the block starting tick
@@ -136,7 +136,7 @@ library OracleLibrary {
     /// extreme care must be taken to ensure that ticks are comparable (including decimal differences).
     /// @dev Note that the weighted arithmetic mean tick corresponds to the weighted geometric mean price.
     function getWeightedArithmeticMeanTick(WeightedTickData[] memory weightedTickData)
-        internal
+        public
         pure
         returns (int24 weightedArithmeticMeanTick)
     {
@@ -164,7 +164,7 @@ library OracleLibrary {
     /// @param ticks The ticks, representing the price of each token pair in `tokens`
     /// @return syntheticTick The synthetic tick, representing the relative price of the outermost tokens in `tokens`
     function getChainedPrice(address[] memory tokens, int24[] memory ticks)
-        internal
+        public
         pure
         returns (int256 syntheticTick)
     {
