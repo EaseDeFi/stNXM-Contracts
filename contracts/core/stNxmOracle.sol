@@ -9,10 +9,8 @@ contract StNxmOracle {
     address immutable wNxm;
     address immutable stNxm;
 
-    // This is equivalent to 50% per year.
-    // Way more than APY will ever be, but less
-    // than needed for a useful price manipulation.
-    uint256 constant saneApy = 5 * 1e17;
+    // 50% as a maximum sane APY.
+    uint256 constant SANE_APY = 5e17;
     // 30 minute twap
     uint32 constant TWAP_PERIOD = 1800;
     uint256 public immutable startTime;
@@ -24,7 +22,7 @@ contract StNxmOracle {
         startTime = block.timestamp;
     }
 
-    // Find the price of stNXM in wNXM
+    // Find the price of stNXM in wNXM.
     // Protections:
     // stNxm price on the dex will be very difficult to be too high because
     // minting is always available.
@@ -45,10 +43,14 @@ contract StNxmOracle {
     function sanePrice(uint256 _price) public view returns (bool) {
         // Amount of 1 year it's been
         uint256 elapsedTime = block.timestamp - startTime;
-        // If price is lower than equal it's not too high.
-        if (_price < 1e18 || elapsedTime < 7 days) return true;
+        // If price is lower than just above equal it's not too high.
+        if (_price < 1.1e18) return true;
 
-        uint256 apy = (_price - 1e18) * 31_536_000 / elapsedTime;
-        return apy <= saneApy;
+        uint256 maxPrice = 1e18 + SANE_APY;
+        // Increase sane price if multiple years have passed.
+        uint256 yearsPassed = elapsedTime / 31_536_000;
+        for (uint256 i = 0; i < yearsPassed; i++) maxPrice += maxPrice * SANE_APY / 1e18;
+
+        return _price <= maxPrice;
     }
 }
