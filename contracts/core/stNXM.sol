@@ -607,10 +607,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         if (tokenIdToPool[tokenId] == address(0)) {
             tokenIds.push(tokenId);
             tokenIdToPool[tokenId] = _poolAddress;
-            tokenIdToTranches[tokenId].push(_trancheId);
-        } else { // Add tranche ID if it doesn't already exist
-            resetTranches();
-        }
+        
+        resetTranches();
     }
 
     /**
