@@ -18,7 +18,7 @@ library PositionValue {
     /// @return amount0 The total amount of token0 including principal and fees
     /// @return amount1 The total amount of token1 including principal and fees
     function total(INonfungiblePositionManager positionManager, uint256 tokenId, uint160 sqrtRatioX96)
-        internal
+        public
         view
         returns (uint256 amount0, uint256 amount1)
     {
@@ -35,7 +35,7 @@ library PositionValue {
     /// @return amount0 The principal amount of token0
     /// @return amount1 The principal amount of token1
     function principal(INonfungiblePositionManager positionManager, uint256 tokenId, uint160 sqrtRatioX96)
-        internal
+        public
         view
         returns (uint256 amount0, uint256 amount1)
     {
@@ -65,7 +65,7 @@ library PositionValue {
     /// @return amount0 The amount of fees owed in token0
     /// @return amount1 The amount of fees owed in token1
     function fees(INonfungiblePositionManager positionManager, uint256 tokenId)
-        internal
+        public
         view
         returns (uint256 amount0, uint256 amount1)
     {
