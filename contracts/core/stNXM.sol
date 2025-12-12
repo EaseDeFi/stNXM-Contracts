@@ -9,10 +9,12 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Ownable} from "../general/Ownable.sol";
 import {PositionValue} from "../libraries/v3-core/PositionValue.sol";
 import {ERC721TokenReceiver} from "../general/ERC721TokenReceiver.sol";
+import {OracleLibrary} from "../libraries/v3-core/OracleLibrary.sol";
+import {TickMath} from "../libraries/v3-core/TickMath.sol";
+
 import {INonfungiblePositionManager} from "../interfaces/INonfungiblePositionManager.sol";
 import {IUniswapV3Pool} from "../libraries/v3-core/IUniswapV3Pool.sol";
-import {OracleLibrary} from "../libraries/v3-core/OracleLibrary.sol";
-import {IStakingPool, INxmMaster} from "../interfaces/INexusMutual.sol";
+import {IStakingPool, INxmMaster, IStakingNFT} from "../interfaces/INexusMutual.sol";
 import {IMorpho, MarketParams, Position, Market, Id} from "../interfaces/IMorpho.sol";
 import {IWNXM} from "../interfaces/IWNXM.sol";
 
@@ -347,7 +349,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         update
     {
         require(
-            _convertToAssets(pending, Math.Rounding.Floor) + assets <= wNxm.balanceOf(address(this)),
+            _convertToAssets(pending, Math.Rounding.Floor) + _amount <= wNxm.balanceOf(address(this)),
             "Not enough NXM available to stake."
         );
         _stakeNxm(_amount, tokenIdToPool[_requestTokenId], _trancheId, _requestTokenId);
@@ -384,7 +386,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      */
     function morphoDeposit(uint256 _assetAmount) external onlyOwner update {
         require(
-            _convertToAssets(pending, Math.Rounding.Floor) + _assetAmounts <= wNxm.balanceOf(address(this)),
+            _convertToAssets(pending, Math.Rounding.Floor) + _assetAmount <= wNxm.balanceOf(address(this)),
             "Not enough NXM available to deposit into Morpho."
         );
 
@@ -517,10 +519,9 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @notice Find balances of both wNXM and stNXM within the Uniswap pool this contract uses.
      */
     function dexBalances() public view returns (uint256 assetsAmount, uint256 sharesAmount) {
-        uint32 twapPeriod = 1800; // 30 minutes  
-        uint160 sqrtRatio = OracleLibrary.getSqrtRatioAtTick(  
-            OracleLibrary.consult(address(dex), twapPeriod)  
-        );
+        uint32 twapPeriod = 1800; // 30 minutes
+        (int24 meanTick, ) = OracleLibrary.consult(address(dex), twapPeriod);
+        uint160 sqrtRatio = TickMath.getSqrtRatioAtTick(meanTick);
 
         for (uint256 i = 0; i < dexTokenIds.length; i++) {
             (uint256 posAmount0, uint256 posAmount1) = PositionValue.total(nfp, dexTokenIds[i], sqrtRatio);
@@ -543,26 +544,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         Market memory market = morpho.market(morphoId);
 
         // Convert shares to assets, avoid division by zero.
-        if (market.totalSupplyShares == 0 || pos.supplyShares == 0) return;
-
-        uint256 elapsed = block.timestamp - market.lastUpdate;
-
-        // Skipped if elapsed == 0 or totalBorrowAssets == 0 because interest would be null, or if irm == address(0).
-        if (elapsed != 0 && market.totalBorrowAssets != 0 && marketParams.irm != address(0)) {
-            uint256 borrowRate = IIrm(marketParams.irm).borrowRateView(marketParams, market);
-            uint256 interest = market.totalBorrowAssets.wMulDown(borrowRate.wTaylorCompounded(elapsed));
-            market.totalBorrowAssets += interest.toUint128();
-            market.totalSupplyAssets += interest.toUint128();
-
-            if (market.fee != 0) {
-                uint256 feeAmount = interest.wMulDown(market.fee);
-                // The fee amount is subtracted from the total supply in this calculation to compensate for the fact
-                // that total supply is already updated.
-                uint256 feeShares =
-                    feeAmount.toSharesDown(market.totalSupplyAssets - feeAmount, market.totalSupplyShares);
-                market.totalSupplyShares += feeShares.toUint128();
-            }
-        }
+        if (market.totalSupplyShares == 0 || pos.supplyShares == 0) return 0;
 
         assets = (pos.supplyShares * uint256(market.totalSupplyAssets)) / uint256(market.totalSupplyShares);
     }
@@ -640,7 +622,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         if (tokenIdToPool[tokenId] == address(0)) {
             tokenIds.push(tokenId);
             tokenIdToPool[tokenId] = _poolAddress;
-        
+        }
+
         resetTranches();
     }
 
