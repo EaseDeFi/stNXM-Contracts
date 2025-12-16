@@ -129,7 +129,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         tokenIdToPool[215] = 0x5A44002A5CE1c2501759387895A3b4818C3F50b3;
         tokenIds.push(242);
         tokenIdToPool[242] = 0x34D250E9fA70748C8af41470323B4Ea396f76c16;
-        resetTranches();
+        _resetTranches();
 
         lastBalance = wNxm.balanceOf(address(this));
         lastStaked = stakedNxm();
@@ -305,10 +305,14 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         _withdrawFromPool(tokenIdToPool[_tokenId], _tokenId, true, false, _trancheIds);
     }
 
+    function resetTranches() external update {
+        _resetTranches();
+    }
+
     /**
      * @notice Check and reset all active tranches for each NFT ID. Can be called by anyone.
      */
-    function resetTranches() public {
+    function _resetTranches() internal {
         // Use the most recently expired tranche
         uint256 firstTranche = (block.timestamp / 91 days) - 1;
 
@@ -343,7 +347,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @param _trancheId ID of the tranche to stake to.
      * @param _requestTokenId Token ID we're adding to if it's already been minted.
      */
-    function stakeNxm(uint256 _amount, uint256 _trancheId, uint256 _requestTokenId)
+    function stakeNxm(uint256 _amount, address _poolAddress, uint256 _trancheId, uint256 _requestTokenId)
         external
         onlyOwner
         update
@@ -352,7 +356,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             _convertToAssets(pending, Math.Rounding.Floor) + _amount <= wNxm.balanceOf(address(this)),
             "Not enough NXM available to stake."
         );
-        _stakeNxm(_amount, tokenIdToPool[_requestTokenId], _trancheId, _requestTokenId);
+        address pool = _requestTokenId == 0 ? _poolAddress : tokenIdToPool[_requestTokenId];
+        _stakeNxm(_amount, pool, _trancheId, _requestTokenId);
     }
 
     /**
@@ -377,7 +382,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
         IStakingPool(stakingPool).extendDeposit(_tokenId, _initialTrancheId, _newTrancheId, _topUpAmount);
 
-        resetTranches();
+        _resetTranches();
     }
 
     /**
@@ -624,7 +629,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             tokenIdToPool[tokenId] = _poolAddress;
         }
 
-        resetTranches();
+        _resetTranches();
     }
 
     /**
