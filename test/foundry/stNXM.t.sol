@@ -80,6 +80,12 @@ contract stNxmTest is Test {
         dex = IUniswapV3Pool(IUniswapFactory(uniswapFactory).getPool(address(stNxm), address(wNxm), 500));
         IUniswapV3Pool(dex).initialize(79228162514264337593543950336);
 
+        // Increase observation cardinality for TWAP support (Iosiro-Updates uses 30-min TWAP)
+        IUniswapV3Pool(dex).increaseObservationCardinalityNext(100);
+        // Warp time forward to allow TWAP observations to accumulate
+        // (Iosiro-Updates uses 30-min TWAP in dexBalances())
+        vm.warp(block.timestamp + 1801); // 30 minutes + 1 second
+
         // Create oracle here
         stNxmOracle = new StNxmOracle(address(dex), address(wNxm), address(stNxm));
 
@@ -463,7 +469,8 @@ contract stNxmTest is Test {
         vm.stopPrank();
 
         uint256 balBefore = wNxm.balanceOf(address(stNxm));
-        stNxm.collectDexFees();
+        // collectDexFees() is now internal, so we test via getRewards() which calls it
+        stNxm.getRewards();
         uint256 balAfter = wNxm.balanceOf(address(stNxm));
         require(balAfter > balBefore, "No fees were withdrawn.");
     }
