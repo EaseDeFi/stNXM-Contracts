@@ -28,6 +28,10 @@ interface INxmMaster {
     function switchMembership(address _newMembership) external;
 }
 
+interface IRegistry {
+    function getContractAddressByIndex(uint256 _contractIndex) external view returns (address);
+}
+
 interface IPooledStaking {
     function unstakeRequests(uint256 id)
         external
@@ -297,4 +301,8 @@ interface INFTDescriptor {
         external
         view
         returns (string memory depositInfo, uint256 totalStake, uint256 pendingRewards);
+}
+
+interface ICover {
+    function stakingPool(uint256 poolId) external view returns (address);
 }

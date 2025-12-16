@@ -14,7 +14,7 @@ import {TickMath} from "../libraries/v3-core/TickMath.sol";
 
 import {INonfungiblePositionManager} from "../interfaces/INonfungiblePositionManager.sol";
 import {IUniswapV3Pool} from "../libraries/v3-core/IUniswapV3Pool.sol";
-import {IStakingPool, INxmMaster, IStakingNFT} from "../interfaces/INexusMutual.sol";
+import {IStakingPool, IRegistry, IStakingNFT, ICover} from "../interfaces/INexusMutual.sol";
 import {IMorpho, MarketParams, Position, Market, Id} from "../interfaces/IMorpho.sol";
 import {IWNXM} from "../interfaces/IWNXM.sol";
 
@@ -37,12 +37,14 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
     IWNXM public constant wNxm = IWNXM(0x0d438F3b5175Bebc262bF23753C1E53d03432bDE);
     IERC20 public constant nxm = IERC20(0xd7c49CEE7E9188cCa6AD8FF264C1DA2e69D4Cf3B);
-    INxmMaster public constant nxmMaster = INxmMaster(0x01BFd82675DBCc7762C84019cA518e701C0cD07e);
+    IRegistry public constant registry = IRegistry(0xcafea2c575550512582090AA06d0a069E7236b9e);
     IStakingNFT public constant stakingNFT = IStakingNFT(0xcafea508a477D94c502c253A58239fb8F948e97f);
+    ICover public constant cover = ICover(0xcafeac0fF5dA0A2777d915531bfA6B29d282Ee62);
     IMorpho public constant morpho = IMorpho(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
     INonfungiblePositionManager public constant nfp =
         INonfungiblePositionManager(0xC36442b4a4522E871399CD717aBDD847Ab11FE88);
     address public constant irm = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
+    uint256 public constant TC_INDEX = 8;
 
     IUniswapV3Pool public dex;
     // Needed for morpho MarketParams
@@ -226,7 +228,6 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @param _user The address to finalize withdrawal for.
      */
     function withdrawFinalize(address _user) external notPaused update {
-        //address user = msg.sender;
         WithdrawalRequest memory withdrawal = withdrawals[_user];
 
         uint256 shares = uint256(withdrawal.shares);
@@ -262,38 +263,13 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         }
 
         // Collect fees from the dex. Compounds back into stNXM value.
-        rewards += collectDexFees();
+        rewards += _collectDexFees();
 
         // Update for any changes since last interaction
         // We don't run the modifier because changes within the function should add to admin fees.
         adminFees += rewards * adminPercent / DIVISOR;
 
         emit NxmReward(rewards, block.timestamp);
-    }
-
-    /**
-     * @notice Collect fees from the Uni V3 pool
-     * @dev Does not have update because it's called within getRewards.
-     */
-    function collectDexFees() internal returns (uint256 rewards) {
-        for (uint256 i = 0; i < dexTokenIds.length; i++) {
-            // amount0 is wNXM
-            // amount1 is stNXM
-            (uint256 amount0, uint256 amount1) = nfp.collect(
-                INonfungiblePositionManager.CollectParams(
-                    dexTokenIds[i],
-                    address(this), // recipient of the fees
-                    type(uint128).max, // maximum amount of amount0
-                    type(uint128).max // maximum amount of amount1
-                )
-            );
-
-            (uint256 stNxmAmount, uint256 wNxmAmount) = isToken0 ? (amount0, amount1) : (amount1, amount0);
-
-            // Burn the stNXM fees.
-            if (stNxmAmount > 0) _burn(address(this), stNxmAmount);
-            rewards += wNxmAmount;
-        }
     }
 
     /**
@@ -347,7 +323,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @param _trancheId ID of the tranche to stake to.
      * @param _requestTokenId Token ID we're adding to if it's already been minted.
      */
-    function stakeNxm(uint256 _amount, address _poolAddress, uint256 _trancheId, uint256 _requestTokenId)
+    function stakeNxm(uint256 _amount, uint256 _poolId, uint256 _trancheId, uint256 _requestTokenId)
         external
         onlyOwner
         update
@@ -356,7 +332,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             _convertToAssets(pending, Math.Rounding.Floor) + _amount <= wNxm.balanceOf(address(this)),
             "Not enough NXM available to stake."
         );
-        address pool = _requestTokenId == 0 ? _poolAddress : tokenIdToPool[_requestTokenId];
+        address pool = cover.stakingPool(_poolId);
         _stakeNxm(_amount, pool, _trancheId, _requestTokenId);
     }
 
@@ -377,7 +353,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
         if (_topUpAmount > 0) {
             wNxm.unwrap(_topUpAmount);
-            nxm.approve(nxmMaster.getLatestAddress("TC"), _topUpAmount);
+            nxm.approve(registry.getContractAddressByIndex(TC_INDEX), _topUpAmount);
         }
 
         IStakingPool(stakingPool).extendDeposit(_tokenId, _initialTrancheId, _newTrancheId, _topUpAmount);
@@ -615,7 +591,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     function _stakeNxm(uint256 _amount, address _poolAddress, uint256 _trancheId, uint256 _requestTokenId) internal {
         wNxm.unwrap(_amount);
         // Make sure it's the most recent token controller address.
-        nxm.approve(nxmMaster.getLatestAddress("TC"), _amount);
+        nxm.approve(registry.getContractAddressByIndex(TC_INDEX), _amount);
 
         IStakingPool pool = IStakingPool(_poolAddress);
         uint256 tokenId = pool.depositTo(_amount, _trancheId, _requestTokenId, address(this));
@@ -653,6 +629,31 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             pool.withdraw(_tokenId, _withdrawStake, _withdrawRewards, _trancheIds);
         amount = withdrawnStake + withdrawnRewards;
         wNxm.wrap(amount);
+    }
+
+    /**
+     * @notice Collect fees from the Uni V3 pool
+     * @dev Does not have update because it's called within getRewards.
+     */
+    function _collectDexFees() internal returns (uint256 rewards) {
+        for (uint256 i = 0; i < dexTokenIds.length; i++) {
+            // amount0 is wNXM
+            // amount1 is stNXM
+            (uint256 amount0, uint256 amount1) = nfp.collect(
+                INonfungiblePositionManager.CollectParams(
+                    dexTokenIds[i],
+                    address(this), // recipient of the fees
+                    type(uint128).max, // maximum amount of amount0
+                    type(uint128).max // maximum amount of amount1
+                )
+            );
+
+            (uint256 stNxmAmount, uint256 wNxmAmount) = isToken0 ? (amount0, amount1) : (amount1, amount0);
+
+            // Burn the stNXM fees.
+            if (stNxmAmount > 0) _burn(address(this), stNxmAmount);
+            rewards += wNxmAmount;
+        }
     }
 
     /**
