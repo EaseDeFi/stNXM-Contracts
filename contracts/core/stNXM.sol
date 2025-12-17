@@ -416,7 +416,12 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         if (stNxmAmount > 0) _burn(address(this), stNxmAmount);
 
         // If we're removing all liquidity, remove from tokenIds.
-        (,,,,,,, uint128 tokenLiq,,,,) = nfp.positions(tokenId);
+        (,, address posToken0, address posToken1,,,, uint128 tokenLiq,,,,) = nfp.positions(tokenId);
+
+        // Doesn't necessarily make sure it's the right pool, but makes sure stNXM that's withdrawn is burnt.
+        bool isStNxmPool = ( isToken0 && posToken0 == address(this) ) || ( !isToken0 && posToken1 == address(this) ) ? true : false;
+        require(isStNxmPool, "Dex token ID is not valid.");
+
         if (tokenLiq == 0) {
             for (uint256 i = 0; i < dexTokenIds.length; i++) {
                 if (tokenId == dexTokenIds[i]) {
