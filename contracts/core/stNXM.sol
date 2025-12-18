@@ -143,7 +143,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @notice Update admin fees based on any changes that occurred between last deposit and withdrawal.
      * @dev This is to be used on functions that have balance changes unrelated to rewards within them such as deposit/withdraw.
      */
-    modifier update () {
+    modifier update() {
         _updateBefore();
         _;
         _updateAfter();
