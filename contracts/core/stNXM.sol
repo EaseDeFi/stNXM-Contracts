@@ -112,6 +112,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         require(msg.sender == owner() && address(dex) == address(0), "Only owner may call, and only call once.");
 
         dex = IUniswapV3Pool(_dex);
+        dex.increaseObservationCardinalityNext(150);
+
         morphoOracle = _morphoOracle;
         MarketParams memory marketParams =
             MarketParams(address(wNxm), address(this), morphoOracle, irm, 625000000000000000);
@@ -477,6 +479,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
             uint256 activeStake = IStakingPool(pool).getActiveStake();
             uint256 stakeSharesSupply = IStakingPool(pool).getStakeSharesSupply();
+            // if (stakeSharesSupply == 0) continue;
 
             // Used to determine if we need to check an expired tranche.
             uint256 currentTranche = block.timestamp / 91 days;
