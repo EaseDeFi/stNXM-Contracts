@@ -9,9 +9,12 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Ownable} from "../general/Ownable.sol";
 import {PositionValue} from "../libraries/v3-core/PositionValue.sol";
 import {ERC721TokenReceiver} from "../general/ERC721TokenReceiver.sol";
+import {OracleLibrary} from "../libraries/v3-core/OracleLibrary.sol";
+import {TickMath} from "../libraries/v3-core/TickMath.sol";
+
 import {INonfungiblePositionManager} from "../interfaces/INonfungiblePositionManager.sol";
 import {IUniswapV3Pool} from "../libraries/v3-core/IUniswapV3Pool.sol";
-import {IStakingPool, INxmMaster} from "../interfaces/INexusMutual.sol";
+import {IStakingPool, IRegistry, IStakingNFT, ICover} from "../interfaces/INexusMutual.sol";
 import {IMorpho, MarketParams, Position, Market, Id} from "../interfaces/IMorpho.sol";
 import {IWNXM} from "../interfaces/IWNXM.sol";
 
@@ -20,7 +23,6 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
     struct WithdrawalRequest {
         uint48 requestTime;
-        uint104 assets;
         uint104 shares;
     }
 
@@ -35,11 +37,14 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
     IWNXM public constant wNxm = IWNXM(0x0d438F3b5175Bebc262bF23753C1E53d03432bDE);
     IERC20 public constant nxm = IERC20(0xd7c49CEE7E9188cCa6AD8FF264C1DA2e69D4Cf3B);
-    INxmMaster public constant nxmMaster = INxmMaster(0x01BFd82675DBCc7762C84019cA518e701C0cD07e);
+    IRegistry public constant registry = IRegistry(0xcafea2c575550512582090AA06d0a069E7236b9e);
+    IStakingNFT public constant stakingNFT = IStakingNFT(0xcafea508a477D94c502c253A58239fb8F948e97f);
+    ICover public constant cover = ICover(0xcafeac0fF5dA0A2777d915531bfA6B29d282Ee62);
     IMorpho public constant morpho = IMorpho(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
     INonfungiblePositionManager public constant nfp =
         INonfungiblePositionManager(0xC36442b4a4522E871399CD717aBDD847Ab11FE88);
     address public constant irm = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
+    uint256 public constant TC_INDEX = 8;
 
     IUniswapV3Pool public dex;
     // Needed for morpho MarketParams
@@ -63,7 +68,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     uint256 private lastStaked;
     uint256 private lastBalance;
     // Whether stNxm is token0 in the dex with wNxm.
-    bool private isToken0;
+    bool internal isToken0;
 
     // Ids for Uniswap NFTs
     uint256[] public dexTokenIds;
@@ -128,19 +133,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         tokenIdToPool[215] = 0x5A44002A5CE1c2501759387895A3b4818C3F50b3;
         tokenIds.push(242);
         tokenIdToPool[242] = 0x34D250E9fA70748C8af41470323B4Ea396f76c16;
-
-        // Get the initial tranches
-        uint256 firstTranche = block.timestamp / 91 days;
-
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            uint256 id = tokenIds[i];
-            address _stakingPool = tokenIdToPool[id];
-
-            for (uint256 tranche = firstTranche; tranche < firstTranche + 8; tranche++) {
-                (,, uint256 trancheDeposit,) = IStakingPool(_stakingPool).getDeposit(id, tranche);
-                if (trancheDeposit > 0) tokenIdToTranches[id].push(tranche);
-            }
-        }
+        _resetTranches();
 
         lastBalance = wNxm.balanceOf(address(this));
         lastStaked = stakedNxm();
@@ -151,20 +144,24 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @dev This is to be used on functions that have balance changes unrelated to rewards within them such as deposit/withdraw.
      */
     modifier update() {
+        _updateBefore();
+        _;
+        _updateAfter();
+    }
+
+    function _updateBefore() internal {
         // Wrap NXM in case rewards were sent to the contract without us knowing
         uint256 nxmBalance = nxm.balanceOf(address(this));
         if (nxmBalance > 0) wNxm.wrap(nxmBalance);
-
         uint256 balance = wNxm.balanceOf(address(this));
         uint256 staked = stakedNxm();
-
         // This only happens without another update if rewards have entered the contract.
-        if (balance > lastBalance && lastStaked <= staked) {
+        if (balance > lastBalance && lastStaked <= staked && staked != 0) {
             adminFees += (balance - lastBalance) * adminPercent / DIVISOR;
         }
-
-        _;
-
+    }
+    
+    function _updateAfter() internal {
         lastBalance = wNxm.balanceOf(address(this));
         lastStaked = stakedNxm();
     }
@@ -216,7 +213,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
         // If one withdraw happens before another is finalized, it adds the amounts but resets the request time.
         withdrawals[caller] = WithdrawalRequest(
-            uint48(block.timestamp), prevWithdrawal.assets + uint104(assets), prevWithdrawal.shares + uint104(shares)
+            uint48(block.timestamp), prevWithdrawal.shares + uint104(shares)
         );
 
         emit WithdrawRequested(caller, shares, assets, block.timestamp, block.timestamp + withdrawDelay);
@@ -233,7 +230,6 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @param _user The address to finalize withdrawal for.
      */
     function withdrawFinalize(address _user) external notPaused update {
-        //address user = msg.sender;
         WithdrawalRequest memory withdrawal = withdrawals[_user];
 
         uint256 shares = uint256(withdrawal.shares);
@@ -241,7 +237,6 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         uint256 requestTime = uint256(withdrawal.requestTime);
 
         require((requestTime + withdrawDelay) <= block.timestamp, "Not ready to withdraw");
-        require(assets > 0, "No pending amount to withdraw");
 
         pending -= uint256(withdrawal.shares);
         delete withdrawals[_user];
@@ -251,6 +246,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             _transfer(address(this), _user, shares);
             return;
         }
+
+        require(assets > 0, "No pending amount to withdraw");
 
         _burn(address(this), shares);
         wNxm.transfer(_user, assets);
@@ -268,38 +265,13 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         }
 
         // Collect fees from the dex. Compounds back into stNXM value.
-        rewards += collectDexFees();
+        rewards += _collectDexFees();
 
         // Update for any changes since last interaction
         // We don't run the modifier because changes within the function should add to admin fees.
         adminFees += rewards * adminPercent / DIVISOR;
 
         emit NxmReward(rewards, block.timestamp);
-    }
-
-    /**
-     * @notice Collect fees from the Uni V3 pool
-     * @dev Does not have update because it's called within getRewards.
-     */
-    function collectDexFees() public returns (uint256 rewards) {
-        for (uint256 i = 0; i < dexTokenIds.length; i++) {
-            // amount0 is wNXM
-            // amount1 is stNXM
-            (uint256 amount0, uint256 amount1) = nfp.collect(
-                INonfungiblePositionManager.CollectParams(
-                    dexTokenIds[i],
-                    address(this), // recipient of the fees
-                    type(uint128).max, // maximum amount of amount0
-                    type(uint128).max // maximum amount of amount1
-                )
-            );
-
-            (uint256 stNxmAmount, uint256 wNxmAmount) = isToken0 ? (amount0, amount1) : (amount1, amount0);
-
-            // Burn the stNXM fees.
-            if (stNxmAmount > 0) _burn(address(this), stNxmAmount);
-            rewards += wNxmAmount;
-        }
     }
 
     /**
@@ -311,10 +283,14 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         _withdrawFromPool(tokenIdToPool[_tokenId], _tokenId, true, false, _trancheIds);
     }
 
+    function resetTranches() external update {
+        _resetTranches();
+    }
+
     /**
      * @notice Check and reset all active tranches for each NFT ID. Can be called by anyone.
      */
-    function resetTranches() public update {
+    function _resetTranches() internal {
         // Use the most recently expired tranche
         uint256 firstTranche = (block.timestamp / 91 days) - 1;
 
@@ -346,16 +322,20 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     /**
      * @notice Owner can stake NXM to the desired pool and tranches. Privileged function.
      * @param _amount Amount of NXM to stake into the pool.
-     * @param _poolAddress Address of the pool that we're staking to.
      * @param _trancheId ID of the tranche to stake to.
      * @param _requestTokenId Token ID we're adding to if it's already been minted.
      */
-    function stakeNxm(uint256 _amount, address _poolAddress, uint256 _trancheId, uint256 _requestTokenId)
+    function stakeNxm(uint256 _amount, uint256 _poolId, uint256 _trancheId, uint256 _requestTokenId)
         external
         onlyOwner
         update
     {
-        _stakeNxm(_amount, _poolAddress, _trancheId, _requestTokenId);
+        require(
+            _convertToAssets(pending, Math.Rounding.Floor) + _amount <= wNxm.balanceOf(address(this)),
+            "Not enough NXM available to stake."
+        );
+        address pool = cover.stakingPool(_poolId);
+        _stakeNxm(_amount, pool, _trancheId, _requestTokenId);
     }
 
     /**
@@ -375,10 +355,12 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
 
         if (_topUpAmount > 0) {
             wNxm.unwrap(_topUpAmount);
-            nxm.approve(nxmMaster.getLatestAddress("TC"), _topUpAmount);
+            nxm.approve(registry.getContractAddressByIndex(TC_INDEX), _topUpAmount);
         }
 
         IStakingPool(stakingPool).extendDeposit(_tokenId, _initialTrancheId, _newTrancheId, _topUpAmount);
+
+        _resetTranches();
     }
 
     /**
@@ -386,6 +368,11 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @param _assetAmount Amount of wNXM to be lent out.
      */
     function morphoDeposit(uint256 _assetAmount) external onlyOwner update {
+        require(
+            _convertToAssets(pending, Math.Rounding.Floor) + _assetAmount <= wNxm.balanceOf(address(this)),
+            "Not enough NXM available to deposit into Morpho."
+        );
+
         wNxm.approve(address(morpho), _assetAmount);
         morpho.supply(
             MarketParams(address(wNxm), address(this), morphoOracle, irm, 625000000000000000),
@@ -431,7 +418,12 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         if (stNxmAmount > 0) _burn(address(this), stNxmAmount);
 
         // If we're removing all liquidity, remove from tokenIds.
-        (,,,,,,, uint128 tokenLiq,,,,) = nfp.positions(tokenId);
+        (,, address posToken0, address posToken1,,,, uint128 tokenLiq,,,,) = nfp.positions(tokenId);
+
+        // Doesn't necessarily make sure it's the right pool, but makes sure stNXM that's withdrawn is burnt.
+        bool isStNxmPool = ( isToken0 && posToken0 == address(this) ) || ( !isToken0 && posToken1 == address(this) ) ? true : false;
+        require(isStNxmPool, "Dex token ID is not valid.");
+
         if (tokenLiq == 0) {
             for (uint256 i = 0; i < dexTokenIds.length; i++) {
                 if (tokenId == dexTokenIds[i]) {
@@ -515,7 +507,9 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      * @notice Find balances of both wNXM and stNXM within the Uniswap pool this contract uses.
      */
     function dexBalances() public view returns (uint256 assetsAmount, uint256 sharesAmount) {
-        (uint160 sqrtRatio,,,,,,) = dex.slot0();
+        uint32 twapPeriod = 1800; // 30 minutes
+        (int24 meanTick, ) = OracleLibrary.consult(address(dex), twapPeriod);
+        uint160 sqrtRatio = TickMath.getSqrtRatioAtTick(meanTick);
 
         for (uint256 i = 0; i < dexTokenIds.length; i++) {
             (uint256 posAmount0, uint256 posAmount1) = PositionValue.total(nfp, dexTokenIds[i], sqrtRatio);
@@ -536,7 +530,10 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     function morphoBalance() public view returns (uint256 assets) {
         Position memory pos = morpho.position(morphoId, address(this));
         Market memory market = morpho.market(morphoId);
-        // Convert shares to assets
+
+        // Convert shares to assets, avoid division by zero.
+        if (market.totalSupplyShares == 0 || pos.supplyShares == 0) return 0;
+
         assets = (pos.supplyShares * uint256(market.totalSupplyAssets)) / uint256(market.totalSupplyShares);
     }
 
@@ -572,6 +569,7 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             uint256 poolId = IStakingPool(stakingPool).getPoolId();
             uint256 activeStake = IStakingPool(stakingPool).getActiveStake();
             uint256 stakeSharesSupply = IStakingPool(stakingPool).getStakeSharesSupply();
+            if (stakeSharesSupply == 0) continue;
             pools[i] = poolId;
 
             uint256 currentTranche = block.timestamp / 91 days;
@@ -600,18 +598,24 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     function _stakeNxm(uint256 _amount, address _poolAddress, uint256 _trancheId, uint256 _requestTokenId) internal {
         wNxm.unwrap(_amount);
         // Make sure it's the most recent token controller address.
-        nxm.approve(nxmMaster.getLatestAddress("TC"), _amount);
+        nxm.approve(registry.getContractAddressByIndex(TC_INDEX), _amount);
 
         IStakingPool pool = IStakingPool(_poolAddress);
         uint256 tokenId = pool.depositTo(_amount, _trancheId, _requestTokenId, address(this));
-        tokenIdToTranches[tokenId].push(_trancheId);
+
+        // Protect against a theoretical scenario of owner depositing to a 100% fee pool.
+        require(pool.getMaxPoolFee() <= 25, "Max pool fee is too high.");
+        require(stakingNFT.ownerOf(tokenId) == address(this), "Token is not owned by stNXM vault.");
+
         // if new nft token is minted we need to keep track of
-        // tokenId and poolAddress inorder to calculate assets
+        // tokenId and poolAddress in order to calculate assets
         // under management
         if (tokenIdToPool[tokenId] == address(0)) {
             tokenIds.push(tokenId);
             tokenIdToPool[tokenId] = _poolAddress;
         }
+
+        _resetTranches();
     }
 
     /**
@@ -638,6 +642,31 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     }
 
     /**
+     * @notice Collect fees from the Uni V3 pool
+     * @dev Does not have update because it's called within getRewards.
+     */
+    function _collectDexFees() internal returns (uint256 rewards) {
+        for (uint256 i = 0; i < dexTokenIds.length; i++) {
+            // amount0 is wNXM
+            // amount1 is stNXM
+            (uint256 amount0, uint256 amount1) = nfp.collect(
+                INonfungiblePositionManager.CollectParams(
+                    dexTokenIds[i],
+                    address(this), // recipient of the fees
+                    type(uint128).max, // maximum amount of amount0
+                    type(uint128).max // maximum amount of amount1
+                )
+            );
+
+            (uint256 stNxmAmount, uint256 wNxmAmount) = isToken0 ? (amount0, amount1) : (amount1, amount0);
+
+            // Burn the stNXM fees.
+            if (stNxmAmount > 0) _burn(address(this), stNxmAmount);
+            rewards += wNxmAmount;
+        }
+    }
+
+    /**
      * @notice Used to mint a new Uni V3 position using funds from the stNXM pool. Only used once.
      * @dev When minting, wNXM is added to the pool from here but stNXM is minted directly to the pool.
      *      Infinite amount of stNXM can be minted, only wNXM held by the contract can be added.
@@ -661,8 +690,8 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
             tickUpper: _tickUpper,
             amount0Desired: amountToAdd,
             amount1Desired: amountToAdd,
-            amount0Min: 0,
-            amount1Min: 0,
+            amount0Min: amountToAdd,
+            amount1Min: amountToAdd,
             recipient: address(this),
             deadline: block.timestamp
         });
@@ -686,7 +715,6 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     /**
      * @notice Owner can pause the contract at any time. This is used in case a hack occurs and slashing must happen before withdrawals.
      * @dev Ideally a Nexus-owned multisig has control over the contract so a malicious owner cannot permanently pause.
-     * Make sure pause has breaks in between pauses so a malicious owner cannot keep it paused forever
      */
     function togglePause() external onlyOwner {
         paused = !paused;
@@ -725,6 +753,15 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
      */
     function removeTokenIdAtIndex(uint256 _index) external onlyOwner {
         uint256 tokenId = tokenIds[_index];
+
+        // Make sure the token no longer has a stake
+        address pool = tokenIdToPool[tokenId];
+        uint256 lastTranche = block.timestamp / 91 days - 1;
+        for (uint256 i = lastTranche; i < lastTranche + 9; i++) {
+            (,, uint256 stakeShares,) = IStakingPool(pool).getDeposit(tokenId, i);
+            require(stakeShares == 0, "Token still has a stake.");
+        }
+
         tokenIds[_index] = tokenIds[tokenIds.length - 1];
         tokenIds.pop();
         // remove mapping to pool
