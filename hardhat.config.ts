@@ -102,18 +102,18 @@ const config: HardhatUserConfig = {
   },
   abiExporter: {
     path: "./data/abi",
-    runOnCompile: true,
+    runOnCompile: false,
     clear: true,
     flat: true,
     spacing: 2,
   },
   networks: {
     hardhat: {
-      forking: {
-        url: forkingURL ?? "",
-        blockNumber: getForkingBlockNumber(),
-        enabled: !!forking,
-      },
+      //forking: {
+      //  url: forkingURL ?? "",
+      //  blockNumber: getForkingBlockNumber(),
+      //  enabled: !!forking,
+      //},
       accounts: {
         mnemonic,
       },
@@ -139,7 +139,7 @@ const config: HardhatUserConfig = {
     tests: "./test",
   },
   solidity: {
-    version: "0.8.17",
+    version: "0.8.26",
     settings: {
       metadata: {
         bytecodeHash: "none",
