@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.26;
 
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
@@ -17,6 +18,44 @@ import {IUniswapV3Pool} from "../libraries/v3-core/IUniswapV3Pool.sol";
 import {IStakingPool, IRegistry, IStakingNFT, ICover} from "../interfaces/INexusMutual.sol";
 import {IMorpho, MarketParams, Position, Market, Id} from "../interfaces/IMorpho.sol";
 import {IWNXM} from "../interfaces/IWNXM.sol";
+
+/**
+                                                            
+                                                 =*.                                                
+                                               .++**:                                               
+                                              .+++***-                                              
+                                             :++++****=.                                            
+                                           .=+++++******.                                           
+                                         .-+++++++*******=.                                         
+                                        .+++++++++*********:                                        
+                                      .+++++++++++***********.                                      
+                                     -++++++++++++************+                                     
+                                   :++++++++++++++**************=                                   
+                                 .++++++++++++++++****************-.                                
+                               .=+++++++++++++++++******************:                               
+                             .:+++++++++++++++++++*******************+.                             
+                            .=++++++++++++++++++++=********************:                            
+                           .++++++++++++++++++++=..-********************+.                          
+                          :++++++++++++++++++++.    .+********************.                         
+                         -+++++++++++++++++++:        .********************.                        
+                        :++++++++++++++++++=            -*******************.                       
+                       .++++++++++++++++++:              .******************-                       
+                       -+++++++++++++++++-.               :******************.                      
+                      .+++++++++++++++++=                  =*****************:                      
+                      .+++++++++++++++++=                  =*****************:                      
+                      .++++++++++++++++++-.               :******************.                      
+                       -++++++++++++++++++=.            .=******************=                       
+                       .+++++++++++++++++++++:..     .:*********************.                       
+                        .+++++++++++++++++++++++++*************************:                        
+                         .++++++++++++++++++++++++************************:                         
+                          .=++++++++++++++++++++++***********************.                          
+                            :+++++++++++++++++++++*********************-                            
+                              :+++++++++++++++++++*******************-.                             
+                                .-++++++++++++++++****************+.                                
+                                   .:+++++++++++++*************:.                                   
+                                        ..-=++++++******+-:.                                                                                                                                                                                                                            
+
+**/
 
 contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
     using SafeERC20 for IERC20;
@@ -99,10 +138,11 @@ contract StNXM is ERC4626Upgradeable, ERC721TokenReceiver, Ownable {
         // since we have a swap contract that will allow people to go from arNXM -> stNXM.
         _mint(owner(), _mintAmount);
 
-        adminPercent = 100;
+        adminPercent = 150;
         beneficiary = _beneficiary;
         withdrawDelay = 2 days;
         isToken0 = address(this) < address(wNxm);
+        paused = true;
 
         nxm.approve(address(wNxm), type(uint256).max);
     }
