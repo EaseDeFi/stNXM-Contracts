@@ -1,0 +1,960 @@
+<script src="https://cdn.jsdelivr.net/npm/mathjax@4.1.0/tex-mml-chtml.js" integrity="sha256-vRVWcOQgIgZwqXAy0HojsQITgghn7o9e0qe7KDF/JO8=" crossorigin="anonymous"></script>
+<style>
+@import url(https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap);@import url('https://fonts.googleapis.com/css2?family=Source Code Pro:wght@400;500;600;700&amp;display=swap');.codequality td{min-width:6em;} ul{opacity:1;}table{border:none !important;}a,code,pre,tt{overflow-wrap:break-word;word-wrap:break-word}.chroma .lntable,.chroma .lntd{margin:0;border:0;padding:0}pre,table{width:100%}.findings-count td,.findings-count th,.rating-critical,.rating-high,.rating-informational,.rating-low,.rating-medium,.status-closed,.status-open,.status-resolved{text-align:center}.rating-critical,.rating-high,.rating-informational,.rating-low,.rating-medium,.status-closed,.status-open,.status-resolved,a,h1,h2,h3{font-weight:500}:root{--color-link:#f66263;--color-heading:#f66263;--color-codeblock:#f5f2f0;--color-codeblock-border:#f5f2f0;--color-critical:#cc7ab9;--color-high:#ff6263;--color-medium:#f68463;--color-low:#f6b263;--color-informational:#6ba2f6;--color-open:#f6d263;--color-closed:#b6b6b6;--color-resolved:#9fbf9f;--size-200:0.694rem;--size-300:0.833rem;--size-400:1rem;--size-500:1.2rem;--size-600:1.44rem;--size-700:1.728rem;--size-800:2.074rem;--size-900:2.488rem}.report-container{color:#222;font-family:Montserrat,sans-serif;line-height:1.6;margin:1rem;font-size:var(--size-400)}a{color:var(--color-link)}@media screen and (min-width:1600px){.report-main{display:grid;grid-gap:1em}.toc{grid-column:1;max-width:30em}.frontpage-logo,.frontpage-subtitle,.frontpage-title,.report{grid-column:2}}@media screen and (max-width:1599px){ .report-main{ margin: 0 auto;max-width:70em} }h1,h2,h3,h4,h5,h6{margin-bottom:0}.toc>ul>li>a,dt,h4,h5,h6,table th{font-weight:600}h1,h2{color:var(--color-heading)}h3,h4,h5,h6{color:#444 !important}h1{font-size:var(--size-800)}h2{font-size:var(--size-700)}h3{font-size:var(--size-600) } .audit-text-formatting .report-main h3{font-size:var(--size-600) }h4{font-size:var(--size-500)}h1 strong,h2 strong,h3 strong,h4 strong{font-weight:400;font-size:.7em;font-family:"Source Code Pro",monospace}h2 strong::after{content:"\a";white-space:pre}code,pre,tt{font-family:"Source Code Pro",monospace,sans-serif;background-color:var(--color-codeblock);white-space:pre-wrap}code,tt{padding:1px 3px;border-radius:2px}pre{box-sizing:border-box;padding:10px;overflow:auto;word-break:break-all}pre code,tt{font-size:inherit;background:0 0;border:none;padding:0}.findings code,h2 code{background-color:inherit;border-width:0}@media screen and (min-width:600px){dl{display:grid;grid-gap:0.5em}dt{grid-column:1}dd{grid-column:2}}@media screen and (max-width:599px){dl{display:block}}table{background-color:inherit;max-width:100%;min-width:100%;border:none;font-size:.9em}table thead th{border-bottom:2px solid #222}table td,table th{text-align:left;border:none}table,td,th{border-collapse:collapse}.findings-count thead tr th:first-of-type{border-style:none}.findings-count tbody td:first-child{text-align:right;width:6em;padding-right:.75em;border-right:2px solid #222;font-weight:600}.findings-count td:nth-child(2),.rating-critical{background-color:var(--color-critical)}.findings-count td:nth-child(3),.rating-high{background-color:var(--color-high)}.findings-count td:nth-child(4),.rating-medium{background-color:var(--color-medium)}.findings-count td:nth-child(5),.rating-low{background-color:var(--color-low)}.findings-count td:nth-child(6),.rating-informational{background-color:var(--color-informational)}.status-open{background-color:var(--color-open)}.status-closed{background-color:var(--color-closed)}.status-resolved{background-color:var(--color-resolved)}.findings td:first-of-type{white-space:nowrap;word-break:keep-all;font-family:"Source Code Pro",monospace;vertical-align:top}.findings td:nth-of-type(2){vertical-align:bottom}@media screen{.audit-header,.report{max-width:65rem}h1{margin-top:3em}h2{margin-top:2em}table th{padding:6px}table td{padding:8px 6px}.findings td:nth-of-type(2){min-width:2em}}.metadata td:last-of-type{background-color:#eee}.metadata td:first-of-type,.metadata td:nth-of-type(2){width:8em}.toc ul{list-style:none;margin-left:0;padding-left:0}.toc li ul{margin-left:3em}.toc{counter-reset:tocSectionCounter}.toc>ul>li::before{content:counter(tocSectionCounter) ". ";font-weight:600;padding-right:4px}.toc>ul>li{counter-increment:tocSectionCounter}.report{counter-reset:sectionCounter}.report h1::before{content:counter(sectionCounter) ". ";font-weight:400;padding-right:6px}.report h1{counter-increment:sectionCounter}hr{display:none}@media print{.landing-header{display:none}.toc li a,h1,h2{color:#222}dd,dt{margin:.2em 0;break-inside:avoid}dl,pre{page-break-inside:auto;break-inside:auto}dd,dt,pre{padding:0}.toc li a,.toc li a::after,pre{background-color:#fff}td{min-width:2em}pre,td{word-break:break-word}h1,h2{margin-top:0}#document-control,.break-before,h1,hr{page-break-before:always}h1{font-size:18pt}h2{font-size:16pt}h3{font-size:14pt}.frontpage-subtitle,h4{font-size:12pt}.toc,p,ul,ol,dl{font-size:11pt}summary{list-style:none;font-size:1.1em;margin-bottom:1em}.toc{background:0 0;max-width:100%;counter-reset:page;line-height:1.6}.toc li a::after{content:target-counter(attr(href),page);float:right;position:absolute;right:0;padding-left:3px}.toc li ul{margin-left:1.5em}.toc li{overflow-x:hidden;max-width:98.5%;text-align:left}.toc li ul li::after{content:".............................................." ".............................................." ".............................................." "........";float:left;width:0;letter-spacing:6px}footer,header{display:none}dd,li,p,p *{text-align:justify}dl{width:100%;display:flex;flex-wrap:wrap}dt{flex:1;min-width:30%}dd{flex:1;min-width:65%}.frontpage-logo{margin-top:75mm;width:65mm;padding-bottom:1cm}.report-container{height:auto}pre{display:inline;font-size:.9em}pre:first-child,pre:last-child{padding:0;margin:0;background-color:#fff}pre *{white-space:pre-wrap;background-color:var(--color-codeblock);padding:1px;word-wrap:normal}.findings td{max-width:20em;overflow-wrap:break-word;text-wrap:balance}.frontpage-title{font-size:20pt;font-weight:700}.frontpage-subtitle{page-break-after:always;}.metadata td{padding:.3em}td{padding:4px}}.page-header{margin-top:-1cm;opacity:.8;position:running(pageHeaderRunning)}.page-header svg{width:34mm}@media screen{.page-header,.frontpage-subtitle,.frontpage-title,.frontpage-logo{display:none}.frontpage-subtitle,.frontpage-title{text-align:center}.frontpage-logo{width:10em;padding-bottom:.5em;margin-left:auto;margin-right:auto}.frontpage-title{font-size:var(--size-900);font-weight:700}.frontpage-subtitle{font-size:var(--size-500)}}@page{size:A4;margin:2cm 1.6cm;bleed:6mm}@page{@bottom-center{content:"𝗣𝗨𝗕𝗟𝗜𝗖 \A hello@iosiro.com";white-space:pre;color:#b7b7b7;font-size:9pt;font-family:Montserrat,sans-serif}@bottom-right-corner{content:counter(page);font-size:9pt}@top-center{content:element(pageHeaderRunning)}}@page:first{text-align:center;@top-center{content:none}@bottom-right-corner{content:none}}.chroma .lnlinks,a{text-decoration:none}.chroma .lntd,.codequality td{vertical-align:top;font-size:.9em}.chroma .ge,.chroma .sd{font-style:italic}.chroma .gh,.chroma .gp,.chroma .gs,.chroma .gu,.chroma .nc,.chroma .nd,.chroma .ni,.chroma .nl,.chroma .nn,.chroma .nt,.chroma .se,summary{font-weight:700}.bg,.chroma{background-color:var(--color-codeblock)}.chroma .lnlinks{outline:0;color:inherit}.chroma .lntable{border-spacing:0}.chroma .hl{background-color:#d8d8d8}.chroma .ln,.chroma .lnt{white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f}.chroma .line{display:flex}.chroma .k,.chroma .kc,.chroma .kd,.chroma .kn,.chroma .kr,.chroma .ow{color:#007020;font-weight:700}.chroma .cp,.chroma .cpf,.chroma .kp,.chroma .nb,.chroma .ne{color:#007020}.chroma .kt{color:#902000}.chroma .dl,.chroma .na,.chroma .s,.chroma .s1,.chroma .s2,.chroma .sa,.chroma .sb,.chroma .sc,.chroma .sd,.chroma .se,.chroma .sh{color:#4070a0}.chroma .nc,.chroma .nn{color:#0e84b5}.chroma .no{color:#60add5}.chroma .nd{color:#555}.chroma .ni{color:#d55537}.chroma .nf{color:#06287e}.chroma .nl{color:#002070}.chroma .nt{color:#062873}.chroma .nv{color:#bb60d5}.chroma .si{color:#70a0d0}.chroma .gp,.chroma .sx{color:#c65d09}.chroma .sr{color:#235388}.chroma .ss{color:#517918}.chroma .il,.chroma .m,.chroma .mb,.chroma .mf,.chroma .mh,.chroma .mi,.chroma .mo{color:#40a070}.chroma .o{color:#666}.chroma .c,.chroma .c1,.chroma .ch,.chroma .cm{color:#60a0b0;font-style:italic}.chroma .cs{color:#60a0b0;background-color:#fff0f0}.chroma .gd{color:#a00000}.chroma .gr{color:red}.chroma .gh{color:navy}.chroma .gi{color:#00a000}.chroma .go{color:#888}.chroma .gu{color:purple}.chroma .gt{color:#04d}.chroma .gl{text-decoration:underline}.chroma .w{color:#bbb}.container{max-width:100%}
+</style>
+<div class="report-container">
+<svg version="1.0" xmlns="http://www.w3.org/2000/svg" style="display:none;">
+<defs>
+<symbol id="iosiro-logo" viewBox="0 0 1233 312" preserveAspectRatio="xMidYMid meet">
+<g fill="#061f45">
+<path d="M171.5 300.6 c-3.9 -1.7 -9.5 -4.6 -12.5 -6.5 -5.1 -3.2 -21 -15 -21 -15.6 0 -0.2 6.1 -3.5 13.5 -7.4 7.4 -3.8 17.2 -9.6 21.8 -12.7 11.1 -7.7 24.4 -21.3 29 -29.5 8.2 -14.7 9.4 -21.4 11.2 -62 1.5 -36.7 3 -46.9 8.5 -62.1 10.1 -27.6 28.2 -43.3 68 -58.8 20.3 -8 31.8 -14.8 42.4 -25.2 l8.9 -8.8 -0.7 5.7 c-1.1 9.2 -4.7 15.7 -13.4 24.2 -9.3 9.1 -20.2 16 -49.9 31.5 -22.9 12 -27 14.8 -33.3 22.7 -8.4 10.6 -10.6 21.1 -12.5 59.2 -1.6 32.3 -2.4 39.8 -5.6 52.7 -7.4 29.9 -24.7 52.9 -51.2 68.2 l-7.7 4.4 6.4 3.6 6.4 3.5 7.9 -4.1 c4.3 -2.2 11.7 -6.7 16.5 -9.9 9.8 -6.6 30.5 -26 40.1 -37.5 8.9 -10.6 21.7 -30.5 28 -43.3 l5.2 -10.7 9.5 -4.5 c5.2 -2.5 9.6 -4.4 9.9 -4.2 1.6 1.7 -13.3 32.8 -22.4 46.7 -22.3 34 -54.5 62.6 -91.3 81.2 l-4.7 2.4 -7 -3.2z"></path>
+<path d="M582.1 272 c-19.3 -4.1 -31.7 -11.4 -45.4 -26.8 -14.2 -16 -19.7 -31.4 -19.7 -55.5 0.1 -22.2 4.9 -36.2 17.4 -50.9 9.3 -10.9 16.1 -16.5 25.8 -21.4 14.5 -7.3 21.7 -8.9 39.8 -8.9 18.3 0 23.5 1.2 38.5 8.5 20.6 10 36.7 29.7 43.1 53 2.6 9.2 2.5 31.8 0 41.4 -7.3 27.2 -27.1 48.7 -53 57.3 -10.6 3.4 -11.8 3.6 -26.6 3.9 -8.5 0.2 -17.5 -0.1 -19.9 -0.6z m31 -31.4 c13.1 -2.8 21.4 -9.3 27.7 -21.3 5.1 -10 6.6 -16.5 6.5 -28.8 0 -22.7 -9.7 -39.6 -26.9 -46.9 -5.9 -2.5 -8.5 -3 -17.7 -3.4 -6.4 -0.3 -12.7 0.1 -15.5 0.8 -25.7 6.4 -40 33.3 -33.7 63.5 2.9 13.8 10.9 25.6 21.7 31.9 8.6 5 25.2 6.9 37.9 4.2z"></path>
+<path d="M754 271.9 c-11.5 -3.2 -17.4 -6.4 -24.9 -13.9 -6.6 -6.6 -12.6 -14.9 -14.6 -20.1 -0.5 -1.4 2.3 -3.1 14.1 -8.8 8.1 -3.9 14.9 -7 15 -6.8 0.2 0.2 2.1 3 4.3 6.4 4.7 7.3 9 10.7 15.4 12.4 5.8 1.4 14.3 0.7 18.7 -1.6 6.2 -3.2 8.8 -14 5.1 -21.4 -3.4 -6.6 -9.5 -10.9 -28.6 -20.2 -21.5 -10.4 -27.5 -15.1 -32.7 -25.7 -3.1 -6.3 -3.3 -7.2 -3.3 -17.7 0.1 -9.1 0.5 -12 2.4 -16.8 5.3 -13.4 16.5 -23.3 31.5 -27.9 5.6 -1.7 8.6 -2 16.7 -1.6 8.9 0.4 10.7 0.9 17.4 4.2 8.9 4.4 17.2 12.1 20.9 19.4 1.4 2.8 2.6 5.6 2.6 6.1 0 0.9 -27.9 15.6 -28.4 14.9 -0.2 -0.2 -1.4 -2 -2.8 -4.1 -5.3 -7.9 -13.3 -11.2 -20.2 -8.3 -4 1.7 -7.6 6.8 -7.6 10.9 0 6.9 5.4 11.8 20.3 18.4 18 7.9 32.9 16.8 39.6 23.4 1.8 1.9 4.7 6.3 6.4 9.9 2.7 5.6 3.2 7.9 3.5 16.2 0.5 11.8 -1.7 20.3 -7.6 29.3 -7.6 11.7 -18.3 19.3 -32.2 23 -6.2 1.7 -25.4 1.9 -31 0.4z"></path>
+<path d="M1118 271 c-17.1 -4.3 -27.7 -10.6 -40.6 -24.3 -5.2 -5.4 -8.2 -9.8 -12.2 -17.7 -6.9 -13.9 -8.4 -19.7 -8.9 -36 -0.6 -16.4 0.9 -24.3 6.6 -36.6 5.5 -11.7 11.7 -20 20.5 -27.7 9.2 -8.1 17.3 -12.6 29.6 -16.8 8 -2.7 11.4 -3.3 21.9 -3.7 17.7 -0.7 28.4 1.5 43.8 9 9.7 4.7 14.7 8.7 24 19.1 14.8 16.5 19.6 29.6 19.7 54.2 0 12.8 -0.3 16.2 -2.3 23.5 -3.4 12.4 -9.3 23 -18 32.2 -12.8 13.7 -23.3 19.9 -41 24.4 -12.1 3.1 -31.5 3.3 -43.1 0.4z m32.9 -30.1 c8.9 -1.6 14.3 -4.2 21.1 -10.5 10.4 -9.7 15.3 -22.3 15.3 -39.4 0 -22.3 -9.5 -39.2 -26.6 -47.1 -6.5 -3 -8.3 -3.3 -18.3 -3.7 -17 -0.7 -27.7 3.1 -37.1 13.1 -8.5 8.9 -13.3 22.2 -13.3 36.8 -0.1 36.5 23.6 56.8 58.9 50.8z"></path>
+<path d="M116.7 259.8 c-21.5 -21.4 -40.1 -47.4 -49.3 -69 -1.9 -4.5 -3.3 -8.2 -3.2 -8.3 0.2 -0.2 6.4 1.9 13.8 4.6 39.7 14.5 52.8 20.7 56.3 26.6 2.3 4 2.4 9.6 0.2 14.8 l-1.8 4 -1.2 -4.8 c-1.6 -6.3 -7.9 -12.8 -16.1 -16.7 -5.8 -2.8 -22.3 -7.4 -23.2 -6.5 -0.8 0.7 20.8 30.1 29.1 39.6 l4.9 5.6 7.6 -4.1 c16.5 -8.9 28.7 -25.3 31.8 -42.6 3.5 -20.6 -2.9 -41.1 -18.1 -56.9 -12.9 -13.5 -24.5 -20.2 -49.7 -28.9 -17.7 -6.1 -23.4 -8.5 -31.3 -13.1 -20.4 -11.6 -34.4 -28.2 -39 -46.2 -2 -7.5 -2 -20.9 -0.2 -28.9 l1.3 -5.5 0.8 6.5 c2.4 21.7 11.4 39 26.7 51.6 9.4 7.7 18.7 12.1 44.4 20.9 58.6 20.2 75.6 34.1 85.1 69.2 3.7 13.8 4 33.3 0.6 44.1 -6.8 21.5 -25.1 39.9 -49.2 49.4 -11.5 4.6 -9.9 5 -20.3 -5.4z"></path>
+<path d="M441 190.5 l0 -78.5 17.5 0 17.5 0 0 78.5 0 78.5 -17.5 0 -17.5 0 0 -78.5z"></path>
+<path d="M858 190.5 l0 -78.5 18 0 18 0 0 78.5 0 78.5 -18 0 -18 0 0 -78.5z"></path>
+<path d="M942 190.5 l0 -78.5 18 0 18 0 0 7.1 0 7.2 4.5 -4.2 c6.7 -6.2 15.9 -11.7 21.6 -13.1 8.5 -2.1 21 -0.8 29.9 2.9 4.1 1.7 8.1 3.5 8.8 4 1.1 0.6 -0.4 4.3 -6.3 16.2 -4.3 8.5 -7.9 15.6 -8.1 15.8 -0.2 0.2 -3.2 -0.9 -6.6 -2.5 -5.3 -2.4 -7.6 -2.9 -14.3 -2.9 -7 0 -8.7 0.4 -13.4 3 -6.6 3.7 -10.4 8.2 -13.3 16 -2.3 5.9 -2.3 6.9 -2.6 56.8 l-0.3 50.7 -17.9 0 -18 0 0 -78.5z"></path>
+<path d="M145 191.5 c-7.1 -7.2 -17 -14 -29.8 -20.4 -10.1 -5.1 -33.5 -13.6 -44.2 -16.1 -13.5 -3.2 -32.8 -13.7 -42 -23 -6.9 -6.8 -13.5 -17.3 -16.6 -26.6 -2.3 -6.6 -2.7 -9.7 -2.8 -18.9 -0.1 -11.4 1.1 -23.2 2.2 -22 0.4 0.3 1.4 4.6 2.3 9.4 3.6 18.6 10.6 32 23.8 45.2 11.8 11.7 18.1 15.2 39.9 21.9 25.8 8 39.3 14.5 53.6 26.1 10 8 20.9 24.4 19.4 28.9 -0.2 0.6 -2.8 -1.5 -5.8 -4.5z"></path>
+<path d="M240 182.6 c0 -2.9 4.2 -12.6 7.5 -17.1 7.7 -10.9 17.3 -18.4 40 -31.2 18.3 -10.3 23.6 -14.3 37.8 -28.2 l11.7 -11.6 0 3.5 c0 10 -5.7 21.6 -15.1 31.1 -7.3 7.4 -13.7 11.2 -32.1 19.3 -21.6 9.6 -32.7 16.6 -43 27.4 -3.8 3.8 -6.8 6.9 -6.8 6.8z"></path>
+<path d="M244 145.8 c0 -3.2 4.3 -15.5 7.8 -22.2 4.1 -7.9 14.2 -18.7 22.2 -23.8 3 -2 11.6 -6.7 19 -10.7 16.7 -8.8 31.3 -19.6 44.9 -33.2 l10.4 -10.3 -0.6 4.2 c-3.3 20.1 -19.8 37.3 -50.7 52.7 -6.3 3.2 -14 7.5 -17.2 9.6 -5.9 4 -25.8 23.1 -32.2 30.8 -2.1 2.6 -3.6 3.8 -3.6 2.9z"></path>
+<path d="M182.1 139.6 c-6.5 -8.4 -21.1 -21.9 -26.3 -24.3 -4.1 -2 -5 -3 -8.2 -9.6 -5 -10.4 -15.6 -21.6 -24.4 -25.9 -6.4 -3.1 -7.3 -3.3 -18.3 -3.3 -13.8 0 -15.9 1 -15.9 7.8 0 3.6 -0.2 3.8 -1.7 2.6 -3 -2.5 -7.3 -10.2 -7.3 -13.2 0 -9.4 12.7 -18.9 29.4 -21.8 5.5 -1 8.2 -2.1 12.1 -5.1 7.3 -5.6 13.7 -7.2 26.5 -6.6 13.4 0.7 20.2 3 46.3 15.4 22.9 11 24.1 11.5 28.5 12.3 l3.2 0.6 -3.6 5 c-9.8 13.7 -18.1 38.4 -19.6 58.5 -0.5 5.9 -2.8 -13.8 -2.8 -23.7 0 -9.8 1.9 -21.5 4.4 -27.5 0.9 -2.1 1.6 -4 1.6 -4.3 0 -0.2 -4.2 -2.4 -9.2 -4.8 -5.1 -2.4 -13.3 -7 -18.3 -10.1 -15.3 -9.7 -33.9 -13.8 -42 -9.4 l-3 1.6 5 0.7 c6.9 0.9 18.2 4.3 19.1 5.7 0.5 0.8 0.1 0.9 -1.1 0.4 -1.1 -0.4 -10.7 -1 -21.4 -1.3 -21 -0.6 -29.5 0.3 -32.5 3.6 -1.6 1.7 -1.3 1.8 5.3 2.5 13.2 1.2 28 7.2 39.8 16 11.7 8.9 21.8 21.8 30.1 38.7 4.1 8.5 9.7 23.8 8.9 24.5 -0.2 0.3 -2.3 -2 -4.6 -5z"></path>
+<path d="M57.1 65.6 l-6.4 -6.4 2.9 -12.2 2.9 -12.3 11 -3.9 c56.8 -20.4 121.7 -24.1 184 -10.6 12 2.6 32.2 8.6 36.2 10.7 0.7 0.4 -3.1 2.5 -8.8 5 l-10 4.4 -7.4 -2.2 c-10.1 -2.9 -23.7 -5.6 -38.6 -7.7 -16.6 -2.4 -59.3 -2.4 -79.4 0 -26.3 3 -71.7 12.6 -73.4 15.5 -0.4 0.6 -1.8 6.8 -3.1 13.6 -1.3 6.9 -2.6 12.5 -3 12.5 -0.3 0 -3.4 -2.9 -6.9 -6.4z"></path>
+<path d="M449.3 66.9 c-12.3 -6.1 -17 -20.9 -10.4 -32.4 5.2 -9 12.9 -12.5 24.6 -11 6.5 0.8 11.1 4.1 14.9 10.9 11 19 -9.7 42.1 -29.1 32.5z"></path>
+<path d="M867.5 67.2 c-5 -2.3 -10.3 -7.6 -12.1 -11.9 -1.8 -4.3 -1.8 -15.2 0.1 -19.6 2.2 -5.4 9.8 -11.5 15.2 -12.3 6.4 -0.9 13.9 0.2 17.9 2.7 7.6 4.7 12.7 16.5 10.5 24.5 -1.5 5.4 -6.1 11.7 -11.2 15.1 -5.4 3.6 -14.5 4.3 -20.4 1.5z"></path>
+</g>
+</symbol>
+</defs>
+<use href="#iosiro-logo"></use>
+</svg>
+<div class="page-header" id="page-header">
+<svg version="1.0">
+<use href="#iosiro-logo"></use>
+</svg>
+</div>
+<main class="report-main">
+<svg version="1.0" class="frontpage-logo">
+<use href="#iosiro-logo"></use>
+</svg>
+<div class="frontpage-title">stNXM Smart Contract Audit</div>
+<div class="frontpage-subtitle">EaseDeFi, 16 January 2026</div>
+<nav class="toc">
+<h1>Contents</h1>
+<ul>
+<li>
+<a href="#introduction">Introduction</a></li>
+<li>
+<a href="#disclaimer">Disclaimer</a></li>
+<li>
+<a href="#methodology">Methodology</a></li>
+<li>
+<a href="#audit-findings">Audit findings</a><ul>
+<li>
+<a href="#io-edf-snm-001-division-by-zero-in-morpho-balance-calculation">IO-EDF-SNM-001 Division by zero in Morpho balance calculation</a></li>
+<li>
+<a href="#io-edf-snm-002-stale-tranche-tracking-after-deposit-extension">IO-EDF-SNM-002 Stale tranche tracking after deposit extension</a></li>
+<li>
+<a href="#io-edf-snm-003-deposit-top-ups-are-double-counted">IO-EDF-SNM-003 Deposit top-ups are double counted</a></li>
+<li>
+<a href="#io-edf-snm-004-contract-size-exceeds-deployment-limit">IO-EDF-SNM-004 Contract size exceeds deployment limit</a></li>
+<li>
+<a href="#io-edf-snm-005-owner-can-deposit-into-externally-owned-position">IO-EDF-SNM-005 Owner can deposit into externally owned position</a></li>
+<li>
+<a href="#io-edf-snm-006-total-assets-susceptible-to-price-manipulation">IO-EDF-SNM-006 Total assets susceptible to price manipulation</a></li>
+<li>
+<a href="#io-edf-snm-010-missing-validation-in-token-id-removal-allows-total-asset-deflation">IO-EDF-SNM-010 Missing validation in token ID removal allows total asset deflation</a></li>
+<li>
+<a href="#io-edf-snm-007-accrued-yield-excluded-from-total-assets">IO-EDF-SNM-007 Accrued yield excluded from total assets</a></li>
+<li>
+<a href="#io-edf-snm-008-staking-pool-share-rounding-can-cause-value-loss">IO-EDF-SNM-008 Staking pool share rounding can cause value loss</a></li>
+<li>
+<a href="#io-edf-snm-009-expired-tranche-rewards-are-lost">IO-EDF-SNM-009 Expired tranche rewards are lost</a></li>
+<li>
+<a href="#io-edf-snm-011-uniswap-position-logic-adds-unnecessary-complexity">IO-EDF-SNM-011 Uniswap position logic adds unnecessary complexity</a></li>
+<li>
+<a href="#io-edf-snm-012-owner-can-grief-withdrawals">IO-EDF-SNM-012 Owner can grief withdrawals</a></li>
+<li>
+<a href="#io-edf-snm-013-erc-4626-allowance-not-enforced-in-withdrawals">IO-EDF-SNM-013 ERC-4626 allowance not enforced in withdrawals</a></li>
+<li>
+<a href="#io-edf-snm-014-incomplete-pause-implementation">IO-EDF-SNM-014 Incomplete pause implementation</a></li>
+<li>
+<a href="#io-edf-snm-015-use-of-blocktimestamp-in-tests-with-via-ir">IO-EDF-SNM-015 Use of block.timestamp in tests with via-ir</a></li>
+<li>
+<a href="#io-edf-snm-016-fee-collection-bypasses-admin-fee-accounting">IO-EDF-SNM-016 Fee collection bypasses admin fee accounting</a></li>
+<li>
+<a href="#io-edf-snm-017-division-by-zero-possible-in-staked-asset-calculation">IO-EDF-SNM-017 Division by zero possible in staked asset calculation</a></li>
+<li>
+<a href="#io-edf-snm-018-oracle-sanity-check-may-trigger-prematurely">IO-EDF-SNM-018 Oracle sanity check may trigger prematurely</a></li>
+</ul>
+</li>
+<li>
+<a href="#code-quality-improvement-suggestions">Code quality improvement suggestions</a></li>
+<li>
+<a href="#specification">Specification</a><ul>
+<li>
+<a href="#stnxm-vault">stNXM Vault</a></li>
+<li>
+<a href="#stnxmoracle">stNxmOracle</a></li>
+<li>
+<a href="#tokenswap">TokenSwap</a></li>
+</ul>
+</li>
+<li>
+<a href="#test-coverage-report">Test coverage report</a></li>
+</ul>
+
+</nav>
+<article class="report">
+<h1 id="introduction">Introduction</h1>
+<p>iosiro was commissioned by EaseDeFi to perform a smart contract audit of the stNXM protocol. Two auditors conducted the audit between December 1, 2025, and January 14, 2026, using 10 audit days.</p>
+<h4 id="overview">Overview</h4>
+<p>The stNXM protocol is an ERC-4626 tokenized vault that provides liquid staking exposure to Nexus Mutual’s staking pools. Users deposit wrapped NXM (wNXM) and receive stNXM shares representing their proportional claim on the vault’s assets. The vault generates yield from three sources: Nexus Mutual staking rewards, Morpho Blue lending interest, and Uniswap V3 liquidity provision fees. The protocol includes a delayed withdrawal mechanism to protect against the risk of front-running and Nexus Mutual slashing events, along with an oracle contract for Morpho market integration and a token swap contract for migrating from the legacy arNXM token.</p>
+<p>The audit identified seven high-risk, four medium-risk, and seven low-risk issues. All high-risk issues were resolved during the audit period. The high-risk findings included potential division-by-zero panics, double-counting of staked assets, price manipulation vulnerabilities, and owner-privileged functions that could result in loss of funds. The medium and low-risk findings were related to unaccounted yield, design complexity, and deviations from best practice.</p>
+<table class="findings-count">
+<thead>
+<tr>
+<th> </th>
+<th>Critical</th>
+<th>High</th>
+<th>Medium</th>
+<th>Low</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Open</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Resolved</td>
+<td>0</td>
+<td>7</td>
+<td>0</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Closed</td>
+<td>0</td>
+<td>0</td>
+<td>4</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<h4 id="scope">Scope</h4>
+<p>The assessment focused on the source files listed below, with all other files considered out of scope. Any out-of-scope code interacting with the assessed code was presumed to operate correctly without introducing functional or security vulnerabilities.</p>
+<ul>
+<li><strong>Project name:</strong> <a href="https://github.com/EaseDeFi/stNXM-Contracts">stNXM-Contracts</a></li>
+<li><strong>Initial audit commit:</strong> <a href="https://github.com/EaseDeFi/stNXM-Contracts/tree/87dbe05fdad58f3195291467bb3e43c55d3f9553">87dbe05</a></li>
+<li><strong>Final review commit:</strong> <a href="https://github.com/EaseDeFi/stNXM-Contracts/tree/748eec3756a81e1a3c2558cec7add052ade520ae">748eec3</a></li>
+<li><strong>Files:</strong> contracts/core/stNXM.sol, contracts/core/stNxmOracle.sol, contracts/core/stNxmSwap.sol</li>
+</ul>
+<p>A specification is available in the <a href="#specification">Specification section</a> of this report.</p>
+<h1 id="disclaimer">Disclaimer</h1>
+<p>This report aims to provide an overview of the assessed smart contracts’ risk exposure and a guide to improving their security posture by addressing identified issues. The audit, limited to specific source code at the time of review, sought to:</p>
+<ul>
+<li>Identify potential security flaws.</li>
+<li>Verify that the smart contracts’ functionality aligns with their documentation.</li>
+</ul>
+<p>Off-chain components, such as backend web application code, keeper functionality, and deployment scripts were explicitly not in-scope of this audit.</p>
+<p>Given the unregulated nature and ease of cryptocurrency transfers, operations involving these assets face a high risk from cyber attacks. Maintaining the highest security level is crucial, necessitating a proactive and adaptive approach that accounts for the experimental and rapidly evolving nature of blockchain technology. To encourage secure code development, developers should:</p>
+<ul>
+<li>Integrate security throughout the development lifecycle.</li>
+<li>Employ defensive programming to mitigate the risks posed by unexpected events.</li>
+<li>Adhere to current best practices wherever possible.</li>
+</ul>
+<h1 id="methodology">Methodology</h1>
+<p>The audit was conducted using the techniques described below.</p>
+<dl>
+<dt>Code review</dt>
+<dd>The source code was manually inspected to identify potential security flaws. Code review is a useful approach for detecting security flaws, discrepancies between the specification and implementation, design improvements, and high-risk areas of the system.</dd>
+<dt>Dynamic analysis</dt>
+<dd>The contracts were compiled, deployed, and tested in a test environment, both manually and through the test suite provided. Dynamic analysis was used to identify additional edge cases, confirm that the code was functional, and to validate the reported issues.</dd>
+<dt>Automated analysis</dt>
+<dd>Automated tooling was used to detect the presence of various types of security vulnerabilities. Static analysis results were reviewed manually and any false positives were removed. Any true positive results are included in this report.</dd>
+</dl>
+<h1 id="audit-findings">Audit findings</h1>
+<p>The table below provides an overview of the audit’s findings. Detailed write-ups are provided below.</p>
+<table class="findings">
+<thead>
+<tr>
+<th>ID</th>
+<th>Issue</th>
+<th>Risk</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="#IO-EDF-SNM-001">IO-EDF-SNM-001</a></td>
+<td>Division by zero in Morpho balance calculation</td>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-002">IO-EDF-SNM-002</a></td>
+<td>Stale tranche tracking after deposit extension</td>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-003">IO-EDF-SNM-003</a></td>
+<td>Deposit top-ups are double counted</td>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-004">IO-EDF-SNM-004</a></td>
+<td>Contract size exceeds deployment limit</td>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-005">IO-EDF-SNM-005</a></td>
+<td>Owner can deposit into externally owned position</td>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-006">IO-EDF-SNM-006</a></td>
+<td>Total assets susceptible to price manipulation</td>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-010">IO-EDF-SNM-010</a></td>
+<td>Missing validation in token ID removal allows total asset deflation</td>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-007">IO-EDF-SNM-007</a></td>
+<td>Accrued yield excluded from total assets</td>
+<td class="rating-medium">Medium</td>
+<td class="status-closed">Closed</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-008">IO-EDF-SNM-008</a></td>
+<td>Staking pool share rounding can cause value loss</td>
+<td class="rating-medium">Medium</td>
+<td class="status-closed">Closed</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-009">IO-EDF-SNM-009</a></td>
+<td>Expired tranche rewards are lost</td>
+<td class="rating-medium">Medium</td>
+<td class="status-closed">Closed</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-011">IO-EDF-SNM-011</a></td>
+<td>Uniswap position logic adds unnecessary complexity</td>
+<td class="rating-medium">Medium</td>
+<td class="status-closed">Closed</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-012">IO-EDF-SNM-012</a></td>
+<td>Owner can grief withdrawals</td>
+<td class="rating-low">Low</td>
+<td class="status-resolved">Resolved</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-013">IO-EDF-SNM-013</a></td>
+<td>ERC-4626 allowance not enforced in withdrawals</td>
+<td class="rating-low">Low</td>
+<td class="status-closed">Closed</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-014">IO-EDF-SNM-014</a></td>
+<td>Incomplete pause implementation</td>
+<td class="rating-low">Low</td>
+<td class="status-resolved">Resolved</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-015">IO-EDF-SNM-015</a></td>
+<td>Use of block.timestamp in tests with via-ir</td>
+<td class="rating-low">Low</td>
+<td class="status-closed">Closed</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-016">IO-EDF-SNM-016</a></td>
+<td>Fee collection bypasses admin fee accounting</td>
+<td class="rating-low">Low</td>
+<td class="status-resolved">Resolved</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-017">IO-EDF-SNM-017</a></td>
+<td>Division by zero possible in staked asset calculation</td>
+<td class="rating-low">Low</td>
+<td class="status-closed">Closed</td>
+</tr>
+<tr>
+<td><a href="#IO-EDF-SNM-018">IO-EDF-SNM-018</a></td>
+<td>Oracle sanity check may trigger prematurely</td>
+<td class="rating-low">Low</td>
+<td class="status-resolved">Resolved</td>
+</tr>
+</tbody>
+</table>
+<p>Each issue identified during the audit has been assigned a risk rating. The rating is determined based on the criteria outlined below.</p>
+<dl>
+<dt>Critical risk</dt>
+<dd>The issue could result in the theft of funds from the contract or its users.</dd>
+<dt>High risk</dt>
+<dd>The issue could result in the loss of funds for the contract owner or its users.</dd>
+<dt>Medium risk</dt>
+<dd>The issue resulted in the code being dysfunctional or the specification being implemented incorrectly.</dd>
+<dt>Low risk</dt>
+<dd>A design or best practice issue that could affect the ordinary functioning of the contract.</dd>
+<dt>Informational</dt>
+<dd>An improvement related to best practice or a suboptimal design pattern.</dd>
+</dl>
+<p>In addition to a risk rating, each issue is assigned a status:</p>
+<dl>
+<dt>Open</dt>
+<dd>The issue remained present in the code as of the final commit reviewed and may still pose a risk.</dd>
+<dt>Resolved</dt>
+<dd>The issue was identified during the audit and has since been satisfactorily addressed, removing the risk it posed.</dd>
+<dt>Closed</dt>
+<dd>The issue was identified during the audit and acknowledged by the developers as an acceptable risk without actioning any change.</dd>
+</dl>
+<a name="IO-EDF-SNM-001"></a><h2 id="io-edf-snm-001-division-by-zero-in-morpho-balance-calculation" class="break-before"><strong>IO-EDF-SNM-001</strong> Division by zero in Morpho balance calculation</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L537">stNXM.sol#L537</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>StNXM::morphoBalance()</code> function calculates the vault’s wNXM balance in the Morpho market by dividing supply shares by total supply shares:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">morphoBalance</span><span class="p">()</span> <span class="k">public</span> <span class="k">view</span> <span class="k">returns</span> <span class="p">(</span><span class="kt">uint256</span> <span class="n">assets</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">Position</span> <span class="k">memory</span> <span class="n">pos</span> <span class="o">=</span> <span class="n">morpho</span><span class="p">.</span><span class="n">position</span><span class="p">(</span><span class="n">morphoId</span><span class="p">,</span> <span class="kt">address</span><span class="p">(</span><span class="nb">this</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">Market</span> <span class="k">memory</span> <span class="n">market</span> <span class="o">=</span> <span class="n">morpho</span><span class="p">.</span><span class="n">market</span><span class="p">(</span><span class="n">morphoId</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Division by zero if market.totalSupplyShares == 0
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">assets</span> <span class="o">=</span> <span class="p">(</span><span class="n">pos</span><span class="p">.</span><span class="n">supplyShares</span> <span class="o">*</span> <span class="kt">uint256</span><span class="p">(</span><span class="n">market</span><span class="p">.</span><span class="n">totalSupplyAssets</span><span class="p">))</span> <span class="o">/</span> <span class="kt">uint256</span><span class="p">(</span><span class="n">market</span><span class="p">.</span><span class="n">totalSupplyShares</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre><p>If the owner withdraws all assets from the Morpho market via <code>StNXM::morphoRedeem()</code>, the <code>market.totalSupplyShares</code> value becomes zero. This causes a division-by-zero panic revert when <code>StNXM::totalAssets()</code> is called, breaking all vault operations, including deposits, withdrawals, and balance queries. A PoC test function to illustrate this issue is shown below:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">test_morpho_dos</span><span class="p">()</span> <span class="k">public</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">vm</span><span class="p">.</span><span class="n">startPrank</span><span class="p">(</span><span class="n">multisig</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">Position</span> <span class="k">memory</span> <span class="n">pos</span> <span class="o">=</span> <span class="n">morpho</span><span class="p">.</span><span class="n">position</span><span class="p">(</span><span class="n">stNxm</span><span class="p">.</span><span class="n">morphoId</span><span class="p">(),</span> <span class="kt">address</span><span class="p">(</span><span class="n">stNxm</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">stNxm</span><span class="p">.</span><span class="n">morphoRedeem</span><span class="p">(</span><span class="n">pos</span><span class="p">.</span><span class="n">supplyShares</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">vm</span><span class="p">.</span><span class="n">stopPrank</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">morpho</span><span class="p">.</span><span class="n">position</span><span class="p">(</span><span class="n">stNxm</span><span class="p">.</span><span class="n">morphoId</span><span class="p">(),</span> <span class="kt">address</span><span class="p">(</span><span class="n">stNxm</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">depositWNXM</span><span class="p">(</span><span class="mi">100</span><span class="n">e18</span><span class="p">,</span> <span class="n">wnxmWhale</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre><h3 id="recommendation">Recommendation</h3>
+<p>The function should return early with a zero value if either <code>pos.supplyShares</code> or <code>market.totalSupplyShares</code> is zero to avoid the division operation entirely.</p>
+<h3 id="client-response">Client response</h3>
+<p>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/6854b14">6854b14</a>.</p>
+<a name="IO-EDF-SNM-002"></a><h2 id="io-edf-snm-002-stale-tranche-tracking-after-deposit-extension" class="break-before"><strong>IO-EDF-SNM-002</strong> Stale tranche tracking after deposit extension</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L367-L380">stNXM.sol#L367-L380</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>tokenIdToTranches</code> mapping is not updated in <code>StNXM::extendDeposit()</code> when the owner moves a deposit from one tranche to another:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">extendDeposit</span><span class="p">(</span><span class="kt">uint256</span> <span class="n">_tokenId</span><span class="p">,</span> <span class="kt">uint256</span> <span class="n">_initialTrancheId</span><span class="p">,</span> <span class="kt">uint256</span> <span class="n">_newTrancheId</span><span class="p">,</span> <span class="kt">uint256</span> <span class="n">_topUpAmount</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">...</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="p">...</span>
+</span></span><span class="line"><span class="cl">    <span class="n">IStakingPool</span><span class="p">(</span><span class="n">stakingPool</span><span class="p">).</span><span class="n">extendDeposit</span><span class="p">(</span><span class="n">_tokenId</span><span class="p">,</span> <span class="n">_initialTrancheId</span><span class="p">,</span> <span class="n">_newTrancheId</span><span class="p">,</span> <span class="n">_topUpAmount</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Missing: tokenIdToTranches not updated after tranche change
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span></code></pre><p>After extending, <code>StakingPool::getDeposit()</code> returns zero for the old tranche, but the vault continues tracking it. This causes <code>StNXM::stakedNxm()</code> to under-report the vault’s staked assets, which in turn deflates <code>StNXM::totalAssets()</code>. Users depositing during this period receive more shares than they should, diluting existing shareholders’ value. The test below provides a proof of concept validating this issue:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">test_exploit_extend_deposit</span><span class="p">()</span> <span class="k">public</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">depositAmt</span> <span class="o">=</span> <span class="mi">1000</span><span class="n">e18</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">vm</span><span class="p">.</span><span class="n">startPrank</span><span class="p">(</span><span class="n">wnxmWhale</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">wNxm</span><span class="p">.</span><span class="n">approve</span><span class="p">(</span><span class="kt">address</span><span class="p">(</span><span class="n">stNxm</span><span class="p">),</span> <span class="n">depositAmt</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">stNxm</span><span class="p">.</span><span class="n">deposit</span><span class="p">(</span><span class="n">depositAmt</span><span class="p">,</span> <span class="n">wnxmWhale</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">vm</span><span class="p">.</span><span class="n">stopPrank</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">totalAssetsBefore</span> <span class="o">=</span> <span class="n">stNxm</span><span class="p">.</span><span class="n">totalAssets</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">sharePriceBefore</span> <span class="o">=</span> <span class="n">stNxm</span><span class="p">.</span><span class="n">convertToAssets</span><span class="p">(</span><span class="mi">1</span><span class="n">e18</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">tokenId</span> <span class="o">=</span> <span class="n">tokenIds</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">initialTrancheId</span> <span class="o">=</span> <span class="mi">224</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">newTrancheId</span> <span class="o">=</span> <span class="mi">230</span><span class="p">;</span> <span class="c1">// Roll forward by one tranche
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kt">uint256</span> <span class="n">topUpAmount</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">vm</span><span class="p">.</span><span class="n">prank</span><span class="p">(</span><span class="n">multisig</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">stNxm</span><span class="p">.</span><span class="n">stakeNxm</span><span class="p">(</span><span class="mi">100</span><span class="n">e18</span><span class="p">,</span> <span class="n">riskPools</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">initialTrancheId</span><span class="p">,</span> <span class="n">tokenId</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">vm</span><span class="p">.</span><span class="n">prank</span><span class="p">(</span><span class="n">multisig</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">stNxm</span><span class="p">.</span><span class="n">extendDeposit</span><span class="p">(</span><span class="n">tokenId</span><span class="p">,</span> <span class="n">initialTrancheId</span><span class="p">,</span> <span class="n">newTrancheId</span><span class="p">,</span> <span class="n">topUpAmount</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">totalAssets</span> <span class="o">=</span> <span class="n">stNxm</span><span class="p">.</span><span class="n">totalAssets</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">sharePrice</span> <span class="o">=</span> <span class="n">stNxm</span><span class="p">.</span><span class="n">convertToAssets</span><span class="p">(</span><span class="mi">1</span><span class="n">e18</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">console2</span><span class="p">.</span><span class="n">log</span><span class="p">(</span><span class="s">&#34;Total Assets changed by:&#34;</span><span class="p">,</span> <span class="kt">int256</span><span class="p">(</span><span class="n">totalAssets</span><span class="p">)</span> <span class="o">-</span> <span class="kt">int256</span><span class="p">(</span><span class="n">totalAssetsBefore</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">console2</span><span class="p">.</span><span class="n">log</span><span class="p">(</span><span class="s">&#34;Share Price changed by:&#34;</span><span class="p">,</span> <span class="kt">int256</span><span class="p">(</span><span class="n">sharePrice</span><span class="p">)</span> <span class="o">-</span> <span class="kt">int256</span><span class="p">(</span><span class="n">sharePriceBefore</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// reconcile tranches
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">stNxm</span><span class="p">.</span><span class="n">resetTranches</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">totalAssets</span> <span class="o">=</span> <span class="n">stNxm</span><span class="p">.</span><span class="n">totalAssets</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="n">sharePrice</span> <span class="o">=</span> <span class="n">stNxm</span><span class="p">.</span><span class="n">convertToAssets</span><span class="p">(</span><span class="mi">1</span><span class="n">e18</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">console2</span><span class="p">.</span><span class="n">log</span><span class="p">(</span><span class="s">&#34;Total Assets changed by:&#34;</span><span class="p">,</span> <span class="kt">int256</span><span class="p">(</span><span class="n">totalAssets</span><span class="p">)</span> <span class="o">-</span> <span class="kt">int256</span><span class="p">(</span><span class="n">totalAssetsBefore</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">console2</span><span class="p">.</span><span class="n">log</span><span class="p">(</span><span class="s">&#34;Share Price changed by:&#34;</span><span class="p">,</span> <span class="kt">int256</span><span class="p">(</span><span class="n">sharePrice</span><span class="p">)</span> <span class="o">-</span> <span class="kt">int256</span><span class="p">(</span><span class="n">sharePriceBefore</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre><h3 id="recommendation-1">Recommendation</h3>
+<p><code>StNXM::resetTranches()</code> should be called at the end of <code>StNXM::extendDeposit()</code> to refresh the tranche tracking and ensure accurate asset reporting.</p>
+<h3 id="client-response-1">Client response</h3>
+<p>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/40630a0">40630a0</a>.</p>
+<a name="IO-EDF-SNM-003"></a><h2 id="io-edf-snm-003-deposit-top-ups-are-double-counted" class="break-before"><strong>IO-EDF-SNM-003</strong> Deposit top-ups are double counted</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L604">stNXM.sol#L604</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>StNXM::_stakeNxm()</code> function unconditionally appends the <code>_trancheId</code> to the <code>tokenIdToTranches</code> array:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">_stakeNxm</span><span class="p">(</span><span class="kt">uint256</span> <span class="n">_amount</span><span class="p">,</span> <span class="kt">address</span> <span class="n">_poolAddress</span><span class="p">,</span> <span class="kt">uint256</span> <span class="n">_trancheId</span><span class="p">,</span> <span class="kt">uint256</span> <span class="n">_requestTokenId</span><span class="p">)</span> <span class="k">internal</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="p">...</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">tokenId</span> <span class="o">=</span> <span class="n">pool</span><span class="p">.</span><span class="n">depositTo</span><span class="p">(</span><span class="n">_amount</span><span class="p">,</span> <span class="n">_trancheId</span><span class="p">,</span> <span class="n">_requestTokenId</span><span class="p">,</span> <span class="kt">address</span><span class="p">(</span><span class="nb">this</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Unconditionally pushes trancheId, even if already tracked
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">tokenIdToTranches</span><span class="p">[</span><span class="n">tokenId</span><span class="p">].</span><span class="n">push</span><span class="p">(</span><span class="n">_trancheId</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">tokenIdToPool</span><span class="p">[</span><span class="n">tokenId</span><span class="p">]</span> <span class="o">==</span> <span class="kt">address</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">tokenIds</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">tokenId</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">tokenIdToPool</span><span class="p">[</span><span class="n">tokenId</span><span class="p">]</span> <span class="o">=</span> <span class="n">_poolAddress</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre><p>When the owner tops up an existing tranche stake, the same tranche ID is added to the array multiple times. The <code>StNXM::stakedNxm()</code> function then iterates over all entries and counts the same tranche’s deposit multiple times, artificially inflating <code>StNXM::totalAssets()</code>. Such top-ups are likely to occur when, for example, the owner tops up an existing tranche stake as new user deposits are received. This results in new depositors receiving more shares than they should. A proof-of-concept test of this issue is given below:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">test_exploit_multiple_stakeNXM</span><span class="p">()</span> <span class="k">public</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">depositAmt</span> <span class="o">=</span> <span class="mi">1000</span><span class="n">e18</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">vm</span><span class="p">.</span><span class="n">startPrank</span><span class="p">(</span><span class="n">wnxmWhale</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">wNxm</span><span class="p">.</span><span class="n">approve</span><span class="p">(</span><span class="kt">address</span><span class="p">(</span><span class="n">stNxm</span><span class="p">),</span> <span class="n">depositAmt</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">stNxm</span><span class="p">.</span><span class="n">deposit</span><span class="p">(</span><span class="n">depositAmt</span><span class="p">,</span> <span class="n">wnxmWhale</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">vm</span><span class="p">.</span><span class="n">stopPrank</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">totalAssetsBefore</span> <span class="o">=</span> <span class="n">stNxm</span><span class="p">.</span><span class="n">totalAssets</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">sharePriceBefore</span> <span class="o">=</span> <span class="n">stNxm</span><span class="p">.</span><span class="n">convertToAssets</span><span class="p">(</span><span class="mi">1</span><span class="n">e18</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">trancheId</span> <span class="o">=</span> <span class="mi">224</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">amountToStake</span> <span class="o">=</span> <span class="mi">100</span><span class="n">e18</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">uint256</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">vm</span><span class="p">.</span><span class="n">prank</span><span class="p">(</span><span class="n">multisig</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">stNxm</span><span class="p">.</span><span class="n">stakeNxm</span><span class="p">(</span><span class="n">amountToStake</span><span class="p">,</span> <span class="n">riskPools</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">trancheId</span><span class="p">,</span> <span class="n">tokenIds</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">totalAssets</span> <span class="o">=</span> <span class="n">stNxm</span><span class="p">.</span><span class="n">totalAssets</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">sharePrice</span> <span class="o">=</span> <span class="n">stNxm</span><span class="p">.</span><span class="n">convertToAssets</span><span class="p">(</span><span class="mi">1</span><span class="n">e18</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">console2</span><span class="p">.</span><span class="n">log</span><span class="p">(</span><span class="s">&#34;Total Assets increased by:&#34;</span><span class="p">,</span> <span class="kt">int256</span><span class="p">(</span><span class="n">totalAssets</span><span class="p">)</span> <span class="o">-</span> <span class="kt">int256</span><span class="p">(</span><span class="n">totalAssetsBefore</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">console2</span><span class="p">.</span><span class="n">log</span><span class="p">(</span><span class="s">&#34;Share Price increased by:&#34;</span><span class="p">,</span> <span class="kt">int256</span><span class="p">(</span><span class="n">sharePrice</span><span class="p">)</span> <span class="o">-</span> <span class="kt">int256</span><span class="p">(</span><span class="n">sharePriceBefore</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre><h3 id="recommendation-2">Recommendation</h3>
+<p>Before appending to <code>tokenIdToTranches</code>,  a call should be made to <code>StakingPool::getDeposit(id, tranche)</code> to check whether the tranche already has a deposit. The tranche ID should only be appended if the deposit amount is zero.</p>
+<h3 id="client-response-2">Client response</h3>
+<p>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/40630a0">40630a0</a>. The fix uses <code>StNXM::_resetTranches()</code> to rebuild the tranche list from on-chain state, which inherently deduplicates entries.</p>
+<a name="IO-EDF-SNM-004"></a><h2 id="io-edf-snm-004-contract-size-exceeds-deployment-limit" class="break-before"><strong>IO-EDF-SNM-004</strong> Contract size exceeds deployment limit</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L18-L743">stNXM.sol#L18-L743</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>StNXM</code> contract compiles to a runtime size of 30,752 bytes, which exceeds the EIP-170 contract size limit of 24,576 bytes. The contract cannot be deployed on-chain in its current form.</p>
+<h3 id="recommendation-3">Recommendation</h3>
+<p>The contract should be refactored to reduce its size below the deployment limit. One approach would be to extract the Uniswap V3 position management logic into a separate contract (see <a href="#IO-EDF-SNM-011">IO-EDF-SNM-011</a>).</p>
+<h3 id="client-response-3">Client response</h3>
+<p>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/aaf931d">aaf931d</a>. The runtime size was reduced to 24,192 bytes.</p>
+<a name="IO-EDF-SNM-005"></a><h2 id="io-edf-snm-005-owner-can-deposit-into-externally-owned-position" class="break-before"><strong>IO-EDF-SNM-005</strong> Owner can deposit into externally owned position</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L367-L380">stNXM.sol#L367-L380</a>, <a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L597-L612">stNXM.sol#L597-L612</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>StNXM::stakeNxm()</code> and <code>StNXM::extendDeposit()</code> functions accept arbitrary pool addresses and token IDs without validating ownership:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">_stakeNxm</span><span class="p">(</span><span class="kt">uint256</span> <span class="n">_amount</span><span class="p">,</span> <span class="kt">address</span> <span class="n">_poolAddress</span><span class="p">,</span> <span class="kt">uint256</span> <span class="n">_trancheId</span><span class="p">,</span> <span class="kt">uint256</span> <span class="n">_requestTokenId</span><span class="p">)</span> <span class="k">internal</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">wNxm</span><span class="p">.</span><span class="n">unwrap</span><span class="p">(</span><span class="n">_amount</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">nxm</span><span class="p">.</span><span class="n">approve</span><span class="p">(</span><span class="n">nxmMaster</span><span class="p">.</span><span class="n">getLatestAddress</span><span class="p">(</span><span class="s">&#34;TC&#34;</span><span class="p">),</span> <span class="n">_amount</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// No validation that _poolAddress is legitimate or _requestTokenId is owned by vault
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">IStakingPool</span> <span class="n">pool</span> <span class="o">=</span> <span class="n">IStakingPool</span><span class="p">(</span><span class="n">_poolAddress</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">tokenId</span> <span class="o">=</span> <span class="n">pool</span><span class="p">.</span><span class="n">depositTo</span><span class="p">(</span><span class="n">_amount</span><span class="p">,</span> <span class="n">_trancheId</span><span class="p">,</span> <span class="n">_requestTokenId</span><span class="p">,</span> <span class="kt">address</span><span class="p">(</span><span class="nb">this</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="p">...</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre><p>A malicious or compromised owner could move vault funds to a staking position owned by an external address, resulting in permanent loss of user funds.</p>
+<h3 id="recommendation-4">Recommendation</h3>
+<p>Any token ID passed to these functions should be verified to be either zero (for new positions) or already owned by the vault. Additionally, the pool address argument should be replaced with a pool ID, with the pool address derived using Nexus Mutual’s <code>StakingPoolLibrary</code> to prevent deposits to arbitrary addresses.</p>
+<h3 id="client-response-4">Client response</h3>
+<p>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/beea701">beea701</a> and <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/0e3f06d">0e3f06d</a>.</p>
+<a name="IO-EDF-SNM-006"></a><h2 id="io-edf-snm-006-total-assets-susceptible-to-price-manipulation" class="break-before"><strong>IO-EDF-SNM-006</strong> Total assets susceptible to price manipulation</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L515">stNXM.sol#L515</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>StNXM::dexBalances()</code> function uses <code>slot0()</code> to determine the current price when calculating the vault’s wNXM holdings in the Uniswap pool:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl">    <span class="kd">function</span> <span class="nf">dexBalances</span><span class="p">()</span> <span class="k">public</span> <span class="k">view</span> <span class="k">returns</span> <span class="p">(</span><span class="kt">uint256</span> <span class="n">assetsAmount</span><span class="p">,</span> <span class="kt">uint256</span> <span class="n">sharesAmount</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// Instantaneous price from slot0() is manipulable via flashloan
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="p">(</span><span class="kt">uint160</span> <span class="n">sqrtRatio</span><span class="p">,,,,,,)</span> <span class="o">=</span> <span class="n">dex</span><span class="p">.</span><span class="n">slot0</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="p">(</span><span class="kt">uint256</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">dexTokenIds</span><span class="p">.</span><span class="n">length</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="p">(</span><span class="kt">uint256</span> <span class="n">posAmount0</span><span class="p">,</span> <span class="kt">uint256</span> <span class="n">posAmount1</span><span class="p">)</span> <span class="o">=</span> <span class="n">PositionValue</span><span class="p">.</span><span class="n">total</span><span class="p">(</span><span class="n">nfp</span><span class="p">,</span> <span class="n">dexTokenIds</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">sqrtRatio</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">...</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre><p>The <code>slot0()</code> value reflects the instantaneous pool price, which can be manipulated within a single transaction. An attacker could use a flash loan to swap a large amount of wNXM into the pool, temporarily inflating the vault’s reported <code>StNXM::totalAssets()</code>. By calling <code>StNXM::withdrawFinalize()</code> in the same transaction, the attacker would receive more wNXM than their shares are worth. A proof of concept test for this issue can be found <a href="https://gist.github.com/iosiro-security/0acf0f9b6a189637ebec17d84dd9b887">here</a>.</p>
+<h3 id="recommendation-5">Recommendation</h3>
+<p>The <code>slot0()</code> call should be replaced with a time-weighted average price (TWAP) calculation using Uniswap V3’s built-in oracle functionality. A TWAP period of at least 30 minutes would make price manipulation economically impractical.</p>
+<h3 id="client-response-5">Client response</h3>
+<p>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/40630a0">40630a0</a>.</p>
+<a name="IO-EDF-SNM-010"></a><h2 id="io-edf-snm-010-missing-validation-in-token-id-removal-allows-total-asset-deflation" class="break-before"><strong>IO-EDF-SNM-010</strong> Missing validation in token ID removal allows total asset deflation</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-high">High</td>
+<td class="status-resolved">Resolved</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L723-L729">stNXM.sol#L723-L729</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>StNXM::removeTokenIdAtIndex()</code> function allows the owner to remove a staking NFT token ID from tracking without validating that the position has been fully withdrawn:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">removeTokenIdAtIndex</span><span class="p">(</span><span class="kt">uint256</span> <span class="n">_index</span><span class="p">)</span> <span class="k">external</span> <span class="n">onlyOwner</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">tokenId</span> <span class="o">=</span> <span class="n">tokenIds</span><span class="p">[</span><span class="n">_index</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">    <span class="n">tokenIds</span><span class="p">[</span><span class="n">_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">tokenIds</span><span class="p">[</span><span class="n">tokenIds</span><span class="p">.</span><span class="n">length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">    <span class="n">tokenIds</span><span class="p">.</span><span class="n">pop</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="k">delete</span> <span class="n">tokenIdToPool</span><span class="p">[</span><span class="n">tokenId</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Missing: validation that the token has no active stakes or rewards
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span></code></pre><p>A malicious owner could remove a token ID with active deposits, deflating <code>StNXM::totalAssets()</code> to mint stNXM at a discount. The owner could then call <code>StNXM::stakeNxm()</code> with the same token ID to reinclude it and profit from the share price difference.</p>
+<h3 id="recommendation-6">Recommendation</h3>
+<p>Before removing a token ID, it should be verified that all tranches associated with the position have zero stake shares and no unclaimed rewards.</p>
+<h3 id="client-response-6">Client response</h3>
+<p>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/beea701">beea701</a>.</p>
+<a name="IO-EDF-SNM-007"></a><h2 id="io-edf-snm-007-accrued-yield-excluded-from-total-assets" class="break-before"><strong>IO-EDF-SNM-007</strong> Accrued yield excluded from total assets</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-medium">Medium</td>
+<td class="status-closed">Closed</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L533-L538">stNXM.sol#L533-L538</a>, <a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L472-L498">stNXM.sol#L472-L498</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>StNXM::morphoBalance()</code> function returns the vault’s principal in the Morpho market but does not include accrued interest:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">morphoBalance</span><span class="p">()</span> <span class="k">public</span> <span class="k">view</span> <span class="k">returns</span> <span class="p">(</span><span class="kt">uint256</span> <span class="n">assets</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">Position</span> <span class="k">memory</span> <span class="n">pos</span> <span class="o">=</span> <span class="n">morpho</span><span class="p">.</span><span class="n">position</span><span class="p">(</span><span class="n">morphoId</span><span class="p">,</span> <span class="kt">address</span><span class="p">(</span><span class="nb">this</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">Market</span> <span class="k">memory</span> <span class="n">market</span> <span class="o">=</span> <span class="n">morpho</span><span class="p">.</span><span class="n">market</span><span class="p">(</span><span class="n">morphoId</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Returns principal only; accrued interest not included
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">assets</span> <span class="o">=</span> <span class="p">(</span><span class="n">pos</span><span class="p">.</span><span class="n">supplyShares</span> <span class="o">*</span> <span class="kt">uint256</span><span class="p">(</span><span class="n">market</span><span class="p">.</span><span class="n">totalSupplyAssets</span><span class="p">))</span> <span class="o">/</span> <span class="kt">uint256</span><span class="p">(</span><span class="n">market</span><span class="p">.</span><span class="n">totalSupplyShares</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre><p>Similarly, <code>StNXM::stakedNxm()</code> excludes unclaimed staking rewards from Nexus Mutual pools. This allows users to deposit immediately before rewards are claimed, receive shares at a discounted rate, and profit when rewards are subsequently distributed.</p>
+<h3 id="recommendation-7">Recommendation</h3>
+<p>Morpho’s <code>MorphoBalancesLib</code> should be used to query the expected supply, including accrued interest. For staking rewards, pending rewards should be considered for inclusion in the <code>StNXM::totalAssets()</code> calculation.</p>
+<h3 id="client-response-7">Client response</h3>
+<p>Implementation left unchanged due to low probability of the risk materialising, and the complexity of changes required to address the issue. The two-day withdrawal delay prevents instant arbitrage, and regular reward claiming through <code>StNXM::getRewards()</code> limits the amount of unaccounted yield at any given time.</p>
+<a name="IO-EDF-SNM-008"></a><h2 id="io-edf-snm-008-staking-pool-share-rounding-can-cause-value-loss" class="break-before"><strong>IO-EDF-SNM-008</strong> Staking pool share rounding can cause value loss</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-medium">Medium</td>
+<td class="status-closed">Closed</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L603">stNXM.sol#L603</a></td>
+</tr>
+</tbody>
+</table>
+<p>Nexus Mutual staking pools calculate initial stake shares based on the floored square root of the deposited NXM amount. When depositing amounts that are not perfect multiples of <code>activeStake / stakeShareSupply</code>, rounding causes value loss. A malicious owner could create a new staking pool with an initial stake designed to maximize this rounding loss, then repeatedly stake and unstake to siphon funds to their own position. A test containing a proof of concept that illustrates this issue can be found <a href="https://gist.github.com/iosiro-security/018f4922842671e1ffa528c5b28e20a4">here</a></p>
+<h3 id="recommendation-8">Recommendation</h3>
+<p>The optimal stake amount that minimizes rounding loss should be calculated before depositing: <code>(amount * stakeShareSupply / activeStake) * stakeShareSupply</code>.</p>
+<h3 id="client-response-8">Client response</h3>
+<p>Given execution will be on mainnet, the gas cost is sufficiently large to mitigate against practical exploitation.</p>
+<a name="IO-EDF-SNM-009"></a><h2 id="io-edf-snm-009-expired-tranche-rewards-are-lost" class="break-before"><strong>IO-EDF-SNM-009</strong> Expired tranche rewards are lost</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-medium">Medium</td>
+<td class="status-closed">Closed</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L315-L329">stNXM.sol#L315-L329</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>StNXM::resetTranches()</code> function only tracks tranches starting from the most recently expired one:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">resetTranches</span><span class="p">()</span> <span class="k">public</span> <span class="n">update</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Starts from the most recently expired tranche
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kt">uint256</span> <span class="n">firstTranche</span> <span class="o">=</span> <span class="p">(</span><span class="nb">block</span><span class="p">.</span><span class="nb">timestamp</span> <span class="o">/</span> <span class="mi">91</span> <span class="kc">days</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">uint256</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">tokenIds</span><span class="p">.</span><span class="n">length</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">uint256</span> <span class="n">id</span> <span class="o">=</span> <span class="n">tokenIds</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">address</span> <span class="n">_stakingPool</span> <span class="o">=</span> <span class="n">tokenIdToPool</span><span class="p">[</span><span class="n">id</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">        <span class="k">delete</span> <span class="n">tokenIdToTranches</span><span class="p">[</span><span class="n">id</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1">// Only tracks 9 tranches from firstTranche; older tranches are lost
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">for</span> <span class="p">(</span><span class="kt">uint256</span> <span class="n">tranche</span> <span class="o">=</span> <span class="n">firstTranche</span><span class="p">;</span> <span class="n">tranche</span> <span class="o">&lt;</span> <span class="n">firstTranche</span> <span class="o">+</span> <span class="mi">9</span><span class="p">;</span> <span class="n">tranche</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="p">(,,</span> <span class="kt">uint256</span> <span class="n">trancheDeposit</span><span class="p">,)</span> <span class="o">=</span> <span class="n">IStakingPool</span><span class="p">(</span><span class="n">_stakingPool</span><span class="p">).</span><span class="n">getDeposit</span><span class="p">(</span><span class="n">id</span><span class="p">,</span> <span class="n">tranche</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">(</span><span class="n">trancheDeposit</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="n">tokenIdToTranches</span><span class="p">[</span><span class="n">id</span><span class="p">].</span><span class="n">push</span><span class="p">(</span><span class="n">tranche</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre><p>If <code>StNXM::unstakeNxm()</code> is not called within one tranche period after expiry, the expired tranche is removed from tracking when <code>StNXM::resetTranches()</code> is called. While anyone can call <code>StNXM::unstakeNxm()</code> to recover the deposited NXM from an expired tranche, the associated rewards would no longer be claimable through <code>StNXM::getRewards()</code> as the tranche is no longer tracked.</p>
+<h3 id="recommendation-9">Recommendation</h3>
+<p><code>StNXM::resetTranches()</code> should be modified to automatically withdraw staked shares and rewards for any expired tranches before removing them from tracking. The admin fee should be applied to withdrawn rewards.</p>
+<h3 id="client-response-9">Client response</h3>
+<p>Acknowledged. Operational procedures will ensure <code>StNXM::unstakeNxm()</code> is called promptly for expiring tranches to claim rewards before they become untracked.</p>
+<a name="IO-EDF-SNM-011"></a><h2 id="io-edf-snm-011-uniswap-position-logic-adds-unnecessary-complexity" class="break-before"><strong>IO-EDF-SNM-011</strong> Uniswap position logic adds unnecessary complexity</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-medium">Medium</td>
+<td class="status-closed">Closed</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L645-L677">stNXM.sol#L645-L677</a></td>
+</tr>
+</tbody>
+</table>
+<p>The contract contains significant Uniswap V3 position management logic that adds unnecessary complexity. For example, <code>StNXM::_mintNewPosition()</code> is only called once during initialization, yet the contract maintains a <code>dexTokenIds</code> array and supports multiple LP positions. This complexity increases the contract size and attack surface.</p>
+<h3 id="recommendation-10">Recommendation</h3>
+<p>The Uniswap position management logic could be extracted into a separate contract that creates the LP position during deployment and donates it to the stNXM vault. This would reduce the main contract’s size and simplify its logic.</p>
+<h3 id="client-response-10">Client response</h3>
+<p>Acknowledged. The contract size was reduced sufficiently to meet deployment limits through other optimisations.</p>
+<a name="IO-EDF-SNM-012"></a><h2 id="io-edf-snm-012-owner-can-grief-withdrawals" class="break-before"><strong>IO-EDF-SNM-012</strong> Owner can grief withdrawals</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-low">Low</td>
+<td class="status-resolved">Resolved</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L597-L612">stNXM.sol#L597-L612</a>, <a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L386-L395">stNXM.sol#L386-L395</a></td>
+</tr>
+</tbody>
+</table>
+<p>The owner can call <code>StNXM::stakeNxm()</code> or <code>StNXM::morphoDeposit()</code> to move wNXM out of the contract while users have pending withdrawals:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">morphoDeposit</span><span class="p">(</span><span class="kt">uint256</span> <span class="n">_assetAmount</span><span class="p">)</span> <span class="k">external</span> <span class="n">onlyOwner</span> <span class="n">update</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// No check that sufficient wNXM remains for pending withdrawals
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">wNxm</span><span class="p">.</span><span class="n">approve</span><span class="p">(</span><span class="kt">address</span><span class="p">(</span><span class="n">morpho</span><span class="p">),</span> <span class="n">_assetAmount</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">morpho</span><span class="p">.</span><span class="n">supply</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="n">MarketParams</span><span class="p">(</span><span class="kt">address</span><span class="p">(</span><span class="n">wNxm</span><span class="p">),</span> <span class="kt">address</span><span class="p">(</span><span class="nb">this</span><span class="p">),</span> <span class="n">morphoOracle</span><span class="p">,</span> <span class="n">irm</span><span class="p">,</span> <span class="mi">625000000000000000</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">        <span class="n">_assetAmount</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="mi">0</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">address</span><span class="p">(</span><span class="nb">this</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">        <span class="s">&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre><p>This would cause <code>StNXM::withdrawFinalize()</code> to fail due to insufficient wNXM balance, preventing users from completing their withdrawals.</p>
+<h3 id="recommendation-11">Recommendation</h3>
+<p>Both functions should be updated to verify that the wNXM balance after the operation remains sufficient to cover the <code>pending</code> withdrawal amount.</p>
+<h3 id="client-response-11">Client response</h3>
+<p>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/6854b14">6854b14</a>.</p>
+<a name="IO-EDF-SNM-013"></a><h2 id="io-edf-snm-013-erc-4626-allowance-not-enforced-in-withdrawals" class="break-before"><strong>IO-EDF-SNM-013</strong> ERC-4626 allowance not enforced in withdrawals</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-low">Low</td>
+<td class="status-closed">Closed</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L191-L197">stNXM.sol#L191-L197</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>StNXM::withdraw()</code> and <code>StNXM::redeem()</code> functions do not enforce the ERC-4626 allowance mechanism or respect the recipient parameter. The current implementation always withdraws from the caller’s balance regardless of the <code>owner</code> parameter.</p>
+<h3 id="recommendation-12">Recommendation</h3>
+<p>If third-party withdrawals are not intended, <code>msg.sender</code>, <code>owner</code>, and <code>recipient</code> should be validated to be the same address to prevent confusion.</p>
+<h3 id="client-response-12">Client response</h3>
+<p>Acknowledged but won’t be addressed at this time.</p>
+<a name="IO-EDF-SNM-014"></a><h2 id="io-edf-snm-014-incomplete-pause-implementation" class="break-before"><strong>IO-EDF-SNM-014</strong> Incomplete pause implementation</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-low">Low</td>
+<td class="status-resolved">Resolved</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L684-L690">stNXM.sol#L684-L690</a></td>
+</tr>
+</tbody>
+</table>
+<p>The code comments indicate the pause functionality should be time-scoped to prevent the owner from indefinitely blocking withdrawals:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="cm">/**
+</span></span></span><span class="line"><span class="cl"><span class="cm">    * @notice Owner can pause the contract at any time. This is used in case a hack occurs and slashing must happen before withdrawals.
+</span></span></span><span class="line"><span class="cl"><span class="cm">    * @dev Ideally a Nexus-owned multisig has control over the contract so a malicious owner cannot permanently pause.
+</span></span></span><span class="line"><span class="cl"><span class="cm">    * Make sure pause has breaks in between pauses so a malicious owner cannot keep it paused forever
+</span></span></span><span class="line"><span class="cl"><span class="cm">    */</span>
+</span></span><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">togglePause</span><span class="p">()</span> <span class="k">external</span> <span class="n">onlyOwner</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">paused</span> <span class="o">=</span> <span class="o">!</span><span class="n">paused</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre><p>However, the current <code>StNXM::togglePause()</code> implementation allows the owner to pause the contract permanently, which could be used to grief users by preventing them from withdrawing their funds.</p>
+<h3 id="recommendation-13">Recommendation</h3>
+<p>A time-limited pause mechanism should be implemented that automatically unpauses after a defined period.</p>
+<h3 id="client-response-13">Client response</h3>
+<p>Fixed by removing the comments that stated the pause would be time-scoped.</p>
+<a name="IO-EDF-SNM-015"></a><h2 id="io-edf-snm-015-use-of-blocktimestamp-in-tests-with-via-ir" class="break-before"><strong>IO-EDF-SNM-015</strong> Use of block.timestamp in tests with via-ir</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-low">Low</td>
+<td class="status-closed">Closed</td>
+<td>Test Suite</td>
+</tr>
+</tbody>
+</table>
+<p>The Foundry test suite uses <code>block.timestamp</code> directly in functions that call <code>vm.warp()</code>. When contracts are compiled with <code>--via-ir</code>, an optimisation caches <code>block.timestamp</code> as a constant within a function, assuming it won’t change mid-execution. The <code>vm.warp()</code> cheatcode breaks this assumption, potentially causing tests to use stale timestamp values and mask bugs.</p>
+<h3 id="recommendation-14">Recommendation</h3>
+<p><code>block.timestamp</code> should be replaced with <a href="https://getfoundry.sh/reference/cheatcodes/get-block-timestamp/"><code>vm.getBlockTimestamp()</code></a> in test functions that use <code>vm.warp()</code> to ensure the correct timestamp is returned after time manipulation.</p>
+<h3 id="client-response-14">Client response</h3>
+<p>Acknowledged. This is a test-only issue that does not affect production code.</p>
+<a name="IO-EDF-SNM-016"></a><h2 id="io-edf-snm-016-fee-collection-bypasses-admin-fee-accounting" class="break-before"><strong>IO-EDF-SNM-016</strong> Fee collection bypasses admin fee accounting</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-low">Low</td>
+<td class="status-resolved">Resolved</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L282-L301">stNXM.sol#L282-L301</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>StNXM::collectDexFees()</code> function is publicly callable, but does not apply the admin fee when called directly. The intended flow is for fees to be collected through <code>StNXM::getRewards()</code>, which has the <code>update</code> modifier and properly accounts for admin fees. Direct calls to <code>StNXM::collectDexFees()</code> would cause collected fees to bypass admin fee accounting until another function with the <code>update</code> modifier is called.</p>
+<h3 id="recommendation-15">Recommendation</h3>
+<p><code>StNXM::collectDexFees()</code> should be made an internal function that can only be called through <code>StNXM::getRewards()</code>.</p>
+<h3 id="client-response-15">Client response</h3>
+<p>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/0e3f06d">0e3f06d</a>.</p>
+<a name="IO-EDF-SNM-017"></a><h2 id="io-edf-snm-017-division-by-zero-possible-in-staked-asset-calculation" class="break-before"><strong>IO-EDF-SNM-017</strong> Division by zero possible in staked asset calculation</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-low">Low</td>
+<td class="status-closed">Closed</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L472-L498">stNXM.sol#L472-L498</a>, <a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L556-L582">stNXM.sol#L556-L582</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>StNXM::stakedNxm()</code> and <code>StNXM::trancheAndPoolAllocations()</code> functions divide by <code>stakeSharesSupply</code> without checking that it is not zero:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">stakedNxm</span><span class="p">()</span> <span class="k">public</span> <span class="k">view</span> <span class="k">returns</span> <span class="p">(</span><span class="kt">uint256</span> <span class="n">assets</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">stakeSharesSupply</span> <span class="o">=</span> <span class="n">IStakingPool</span><span class="p">(</span><span class="n">pool</span><span class="p">).</span><span class="n">getStakeSharesSupply</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="p">...</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// No check if stakeSharesSupply == 0 before division
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">assets</span> <span class="o">+=</span> <span class="p">(</span><span class="n">activeStake</span> <span class="o">*</span> <span class="n">stakeShares</span><span class="p">)</span> <span class="o">/</span> <span class="n">stakeSharesSupply</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre><p>If a tracked pool has no stake shares, the division would cause a panic revert.</p>
+<h3 id="recommendation-16">Recommendation</h3>
+<p>An explicit check should be added to skip pools where <code>stakeSharesSupply</code> is zero in all places where that value is used as a divisor.</p>
+<h3 id="client-response-16">Client response</h3>
+<p>Fixed in <code>StNXM::trancheAndPoolAllocations()</code> in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/6854b14">6854b14</a>. For <code>StNXM::stakedNxm()</code>, acknowledged with minimal risk as the issue should only practically materialise if an old token is not removed through <code>StNXM::removeTokenIdAtIndex()</code>.</p>
+<a name="IO-EDF-SNM-018"></a><h2 id="io-edf-snm-018-oracle-sanity-check-may-trigger-prematurely" class="break-before"><strong>IO-EDF-SNM-018</strong> Oracle sanity check may trigger prematurely</h2>
+<table class="metadata">
+
+<tbody>
+<tr>
+<td class="rating-low">Low</td>
+<td class="status-resolved">Resolved</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNxmOracle.sol#L47">stNxmOracle.sol#L47</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>StNxmOracle::sanePrice()</code> validation calculates the maximum allowed price based on linear APY since deployment:</p>
+<pre tabindex="0" class="chroma"><code><span class="line"><span class="cl"><span class="kd">function</span> <span class="nf">sanePrice</span><span class="p">(</span><span class="kt">uint256</span> <span class="n">_price</span><span class="p">)</span> <span class="k">public</span> <span class="k">view</span> <span class="k">returns</span> <span class="p">(</span><span class="kt">bool</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint256</span> <span class="n">elapsedTime</span> <span class="o">=</span> <span class="nb">block</span><span class="p">.</span><span class="nb">timestamp</span> <span class="o">-</span> <span class="n">startTime</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">_price</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="n">e18</span><span class="p">)</span> <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Linear APY calculation with no minimum threshold
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kt">uint256</span> <span class="n">apy</span> <span class="o">=</span> <span class="p">(</span><span class="n">_price</span> <span class="o">-</span> <span class="mi">1</span><span class="n">e18</span><span class="p">)</span> <span class="o">*</span> <span class="mi">31</span><span class="n">_536_000</span> <span class="o">/</span> <span class="n">elapsedTime</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">apy</span> <span class="o">&lt;=</span> <span class="n">saneApy</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre><p>Shortly after deployment, even small legitimate price movements could exceed this threshold and trigger the circuit breaker, preventing Morpho market operations.</p>
+<h3 id="recommendation-17">Recommendation</h3>
+<p>To  prevent false positives during the early operational period, consider introducing a minimum price threshold (e.g., 10% above initial price) that is always considered sane regardless of time elapsed.</p>
+<h3 id="client-response-17">Client response</h3>
+<p>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/7a9abd4">7a9abd4</a>.</p>
+<h1 id="code-quality-improvement-suggestions">Code quality improvement suggestions</h1>
+<p>Code improvement suggestions without security implications are listed below.</p>
+<table class="codequality">
+<thead>
+<tr>
+<th>\ID</th>
+<th>Location</th>
+<th>Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IO-EDF-SNM-019</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNxmOracle.sol#L51">stNxmOracle.sol#L51</a></td>
+<td>The APY calculation in <code>StNxmOracle::sanePrice()</code> does not take compounding into account. This could lead to the <code>StNxmOracle::price()</code> reverting due to suspected price manipulation after the StNXM protocol has been operational for multiple years.</td>
+</tr>
+<tr>
+<td>IO-EDF-SNM-020</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L335-L338">stNXM.sol#L335-L338</a></td>
+<td><code>StNXM::withdrawAdminFees()</code> should make use of the Check-Effects-Interactions pattern and only reset the storage slot when necessary. The function should cache the <code>adminFees</code> value, set the storage to zero, and then perform the transfer using the cached value.</td>
+</tr>
+<tr>
+<td>IO-EDF-SNM-021</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L100">stNXM.sol#L100</a></td>
+<td><code>isToken0</code> is currently a private state variable set once in the initializer. To save on storage reads and writes, it could instead be converted to an internal view function that computes the value by comparing <code>address(this)</code> to <code>address(wNxm)</code>.</td>
+</tr>
+<tr>
+<td>IO-EDF-SNM-022</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L684-L690">stNXM.sol#L684-L690</a>, <a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L697-L699">stNXM.sol#L697-L699</a>, <a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L706-L709">stNXM.sol#L706-L709</a>, <a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L248-L251">stNXM.sol#L248-L251</a></td>
+<td>Owner-callable administrative functions (<code>StNXM::togglePause()</code>, <code>StNXM::changeWithdrawDelay()</code>, <code>StNXM::changeAdminPercent()</code>) do not emit events. Adding events to these functions would improve the protocol’s operational transparency. An event for <code>StNXM::withdrawFinalize()</code> when returning shares for expired requests would also be useful.</td>
+</tr>
+<tr>
+<td>IO-EDF-SNM-023</td>
+<td>General</td>
+<td>Solidity 0.8.4 introduced <a href="https://www.soliditylang.org/blog/2021/04/21/custom-errors/">custom errors</a>, a more systematic and gas-efficient method for defining revert reasons. As of <a href="https://www.soliditylang.org/blog/2024/09/04/solidity-0.8.27-release-announcement/">Solidity 0.8.27</a>, these errors can be used in <code>require</code> statements in place of strings. Using custom errors instead of strings would allow stNXM to standardise error messages and slightly reduce the gas costs of affected functions. Note that using custom errors in require statements would necessitate upgrading the pragma to <code>^0.8.27</code>.</td>
+</tr>
+<tr>
+<td>IO-EDF-SNM-024</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L23">stNXM.sol#L23</a></td>
+<td>The <code>assets</code> field in the <code>WithdrawalRequest</code> struct is not used by <code>StNXM::withdrawFinalize()</code> and therefore can be removed.</td>
+</tr>
+<tr>
+<td>IO-EDF-SNM-025</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L600">stNXM.sol#L600</a></td>
+<td>During a recent upgrade, Nexus Mutual replaced the old NX Master contract with a new Registry contract. While NX Master was made backwards compatible, it can be considered deprecated. As such, stNXM should use the new Registry contract and the <code>getContractAddressByIndex()</code> function to retrieve contract addresses.</td>
+</tr>
+<tr>
+<td>IO-EDF-SNM-026</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L242">stNXM.sol#L242</a></td>
+<td>The check for <code>assets &gt; 0</code> should be moved to after the logic to return shares for expired requests. This allows user shares to be returned even if the value of the shares is zero.</td>
+</tr>
+<tr>
+<td>IO-EDF-SNM-027</td>
+<td><a href="https://github.com/EaseDeFi/stNXM-Contracts/blob/87dbe05fdad58f3195291467bb3e43c55d3f9553/contracts/core/stNXM.sol#L254">stNXM.sol#L254</a></td>
+<td>To improve usability, a suitable error should be returned in <code>StNXM::withdrawFinalize()</code> if the contract’s balance is below the asset amount. The check performed in <code>StNXM::_withdraw()</code> could be reused.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="client-response-18">Client response</h3>
+<dl>
+<dt>IO-EDF-SNM-019</dt>
+<dd>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/7a9abd4">7a9abd4</a>.</dd>
+<dt>IO-EDF-SNM-020</dt>
+<dd>Acknowledged but won’t be addressed at this time.</dd>
+<dt>IO-EDF-SNM-021</dt>
+<dd>Acknowledged but won’t be addressed at this time.</dd>
+<dt>IO-EDF-SNM-022</dt>
+<dd>Acknowledged but won’t be addressed at this time.</dd>
+<dt>IO-EDF-SNM-023</dt>
+<dd>Acknowledged but won’t be addressed at this time.</dd>
+<dt>IO-EDF-SNM-024</dt>
+<dd>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/6854b14">6854b14</a>.</dd>
+<dt>IO-EDF-SNM-025</dt>
+<dd>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/0e3f06d">0e3f06d</a>.</dd>
+<dt>IO-EDF-SNM-026</dt>
+<dd>Fixed in <a href="https://github.com/EaseDeFi/stNXM-Contracts/commit/6854b14">6854b14</a>.</dd>
+<dt>IO-EDF-SNM-027</dt>
+<dd>Acknowledged but won’t be addressed at this time.</dd>
+</dl>
+<h1 id="specification">Specification</h1>
+<p>The following section outlines the system’s intended functionality at a high level, based on its implementation in the codebase. Any perceived points of conflict should be highlighted with the auditing team to determine the source of the discrepancy.</p>
+<h2 id="stnxm-vault">stNXM Vault</h2>
+<p>The stNXM contract is an ERC-4626 tokenized vault that provides liquid staking exposure to Nexus Mutual. Users deposit wNXM and receive stNXM shares representing their proportional ownership of the vault’s assets. The vault manages assets across three yield-generating strategies:</p>
+<ol>
+<li>
+<p><strong>Nexus Mutual Staking</strong>: The owner stakes NXM, after unwrapping wNXM, into Nexus Mutual staking pools to earn rewards from coverage premiums. Staking positions are represented by NFTs with deposits allocated to pool tranches.</p>
+</li>
+<li>
+<p><strong>Morpho Lending</strong>: The vault supplies wNXM to a Morpho Blue market where borrowers can take loans using stNXM as collateral.</p>
+</li>
+<li>
+<p><strong>Uniswap V3 Liquidity</strong>: The vault provides liquidity to a stNXM/wNXM Uniswap V3 pool, earning trading fees. The stNXM minted for the LP position is considered “virtual” and excluded from the circulating supply.</p>
+</li>
+</ol>
+<h3 id="deposits">Deposits</h3>
+<p>Users deposit wNXM and receive stNXM shares based on the current exchange rate determined by <code>totalAssets() / totalSupply()</code>. The vault’s total assets are calculated as:</p>
+<pre><code>totalAssets() = stakedNxm() + unstakedNxm() - adminFees
+</code></pre>
+<p>Where <code>unstakedNxm()</code> includes the wNXM balance, NXM balance, Morpho supply position, and the wNXM portion of Uniswap LP positions (valued using a 30-minute TWAP).</p>
+<h3 id="withdrawals">Withdrawals</h3>
+<p>Withdrawals follow a two-phase process:</p>
+<ol>
+<li>
+<p><strong>Request Phase</strong>: Users call <code>withdraw()</code> or <code>redeem()</code> to initiate a withdrawal. Their shares are transferred to the contract and added to the pending withdrawal queue.</p>
+</li>
+<li>
+<p><strong>Finalization Phase</strong>: After a configurable delay (default 2 days), users call <code>withdrawFinalize()</code> to receive their wNXM. If not finalized within 1 day of eligibility, the request expires, and shares are returned.</p>
+</li>
+</ol>
+<h3 id="privileged-actions">Privileged Actions</h3>
+<p>The vault owner can perform several privileged actions, including:</p>
+<ul>
+<li>Stake and unstake NXM from Nexus Mutual pools</li>
+<li>Deposit and withdraw from the Morpho market</li>
+<li>Manage Uniswap LP positions</li>
+<li>Pause withdrawals in case of emergencies</li>
+<li>Collect admin fees (configurable, capped at 50% of rewards)</li>
+<li>Adjust the withdrawal delay, the admin fee percentage and the beneficiary address where accrued admin fees will be sent</li>
+<li>Sweep ERC-20 tokens deposited into the contract, provided they’re not wNXM, NXM or stNXM</li>
+</ul>
+<h2 id="stnxmoracle">stNxmOracle</h2>
+<p>The oracle contract provides a price feed for the stNXM/wNXM exchange rate used by the Morpho market. It queries a 30-minute TWAP from the Uniswap V3 pool and includes a sanity check that rejects prices implying greater than 50% APY, protecting against price manipulation.</p>
+<h2 id="tokenswap">TokenSwap</h2>
+<p>The token swap contract facilitates migration from the legacy arNXM token to stNXM at a fixed exchange rate of approximately 0.957 stNXM per arNXM. Users send arNXM (which is burned to a dead address) and receive the equivalent stNXM.</p>
+<h1 id="test-coverage-report">Test coverage report</h1>
+<p>The coverage report of the provided tests as of the final day of the audit is given below.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>% Lines</th>
+<th>% Statements</th>
+<th>% Branches</th>
+<th>% Funcs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>contracts/core/stNXM.sol</td>
+<td>85.71% (216/252)</td>
+<td>87.70% (271/309)</td>
+<td>41.30% (19/46)</td>
+<td>83.33% (35/42)</td>
+</tr>
+<tr>
+<td>contracts/core/stNxmOracle.sol</td>
+<td>100.00% (17/17)</td>
+<td>100.00% (23/23)</td>
+<td>33.33% (1/3)</td>
+<td>100.00% (3/3)</td>
+</tr>
+<tr>
+<td>contracts/core/stNxmSwap.sol</td>
+<td>81.82% (9/11)</td>
+<td>88.89% (8/9)</td>
+<td>100.00% (0/0)</td>
+<td>75.00% (3/4)</td>
+</tr>
+</tbody>
+</table>
+<p>The in-scope contracts had adequate test coverage.</p>
+
+</article>
+</main>
+</div>
